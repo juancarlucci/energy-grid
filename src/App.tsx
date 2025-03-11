@@ -1,4 +1,5 @@
-import { useQuery, gql } from "@apollo/client";
+import { useQuery, gql, useApolloClient } from "@apollo/client";
+import { useState, useEffect, useMemo } from "react";
 
 //* Define a GraphQL query for static grid data (mocked as "posts" from GraphQLZero)
 const GET_GRID_DATA = gql`
@@ -12,6 +13,13 @@ const GET_GRID_DATA = gql`
   }
 `;
 
+// Mock grid data type (simulating what a real API might return)
+type GridEntry = {
+  id: string;
+  voltage: number; // We'll fake this from "title"
+  timestamp: string;
+};
+
 function App() {
   //* useQuery as a friendly librarian working in a local branch library (your App component).
   //* This librarian doesn’t own the books or manage the storage—that’s HQ’s job.
@@ -24,25 +32,72 @@ function App() {
   //* with the GET_GRID_DATA query. The client fetches the data from the server (or cache) and
   //* hands it back to useQuery, which then gives you loading, error, and data states to work with.
   //* It’s a local worker relying on the central system.
-  const { loading, error, data, refetch } = useQuery(GET_GRID_DATA, {
-    pollInterval: 5000, //* Simulate real-time updates by polling every 5 seconds
+  const { loading, error, data } = useQuery(GET_GRID_DATA, {
+    // pollInterval: 5000, //* Simulate real-time updates by polling every 5 seconds
+    fetchPolicy: "cache-and-network", //* Use cache first, then update with network
   });
 
-  if (loading) return <p>Loading grid data...</p>;
+  const client = useApolloClient(); //* Access ApolloClient for manual cache updates
+  const [liveData, setLiveData] = useState<GridEntry[]>([]);
+
+  //* Simulate real-time updates (since GraphQLZero lacks subscriptions)
+  useEffect(() => {
+    if (!data) return;
+
+    //* Initial load from query
+    const initialData: GridEntry[] = data.posts.data.map(
+      (post: { id: string; title: string }) => ({
+        id: post.id,
+        voltage: parseInt(post.title.slice(0, 3), 10) || 230, //* Fake voltage from title
+        timestamp: new Date().toISOString(),
+      })
+    );
+    setLiveData(initialData);
+
+    //* Simulate subscription with interval
+    const interval = setInterval(() => {
+      setLiveData((prev) =>
+        prev.map((entry) => ({
+          ...entry,
+          voltage: entry.voltage + Math.floor(Math.random() * 10) - 5, //* Random fluctuation
+          timestamp: new Date().toISOString(),
+        }))
+      );
+      //* Optional: Write to cache (simulating a subscription update)
+      client.writeQuery({
+        query: GET_GRID_DATA,
+        data: {
+          posts: {
+            data: liveData.map((entry) => ({
+              id: entry.id,
+              title: `${entry.voltage}`, //* Back to string for mock API consistency
+              __typename: "Post", //* Required for cache normalization
+            })),
+          },
+        },
+      });
+    }, 3000); //* Update every 3 seconds
+
+    return () => clearInterval(interval); //* Cleanup
+  }, [data, client]);
+
+  //* Optimize rendering with useMemo
+  const renderedGrid = useMemo(() => {
+    return liveData.map((entry) => (
+      <li key={entry.id}>
+        Voltage: {entry.voltage} V (ID: {entry.id}, Time: {entry.timestamp})
+      </li>
+    ));
+  }, [liveData]);
+
+  if (loading && !data) return <p>Loading grid data...</p>;
   if (error) return <p>Error: {error.message}</p>;
 
   return (
     <div>
       <h1>Energy Grid Dashboard</h1>
-      <p>Simulated real-time updates every 5 seconds</p>
-      <button onClick={() => refetch()}>Refresh Now</button>
-      <ul>
-        {data?.posts?.data.map((entry: { id: string; title: string }) => (
-          <li key={entry.id}>
-            Voltage: {entry.title} (ID: {entry.id})
-          </li>
-        ))}
-      </ul>
+      <p>Simulated real-time updates every 3 seconds</p>
+      <ul>{renderedGrid}</ul>
     </div>
   );
 }
