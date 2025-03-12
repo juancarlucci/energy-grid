@@ -64,8 +64,8 @@ const Subscription = new GraphQLObjectType({
 
 //* Schema—the library’s master catalog, now with a query section for validity
 const schema = new GraphQLSchema({
-  query: Query, //* Added to satisfy GraphQL requirements
-  subscription: Subscription,
+  query: Query, //*  Added to satisfy GraphQL requirements. Static book requests
+  subscription: Subscription, //* Live book deliveries
 });
 
 //* WebSocket server—the live delivery desk at /graphql
