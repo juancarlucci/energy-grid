@@ -1,14 +1,13 @@
 import { useQuery, useSubscription, gql } from "@apollo/client";
 import { useState, useEffect, useMemo } from "react";
 
-//* Define a GraphQL query for static grid data (mocked as "posts" from GraphQLZero)
+//* Define a GraphQL query for static grid data from local server
 const GET_GRID_DATA = gql`
   query GetGridData {
-    posts {
-      data {
-        id
-        title # Mocking as "voltage"
-      }
+    grid {
+      id
+      voltage
+      timestamp
     }
   }
 `;
@@ -58,13 +57,7 @@ function App() {
   //* Combine initial query data with subscription updates
   useEffect(() => {
     if (queryData) {
-      const initialData: GridEntry[] = queryData.posts.data.map(
-        (post: { id: string; title: string }) => ({
-          id: post.id,
-          voltage: parseInt(post.title.slice(0, 3), 10) || 230, //* Fake voltage from title
-          timestamp: new Date().toISOString(),
-        })
-      );
+      const initialData: GridEntry[] = queryData.grid; //* Now directly from local server
       setLiveData(initialData);
     }
     if (subData?.gridUpdate) {
@@ -87,7 +80,7 @@ function App() {
       <li
         key={entry.id}
         style={{
-          backgroundColor: entry.id === updatedId ? "#387938" : "transparent",
+          backgroundColor: entry.id === updatedId ? "#e0ffe0" : "transparent",
         }} //* Flash green on update
       >
         Voltage: {entry.voltage} V (ID: {entry.id}, Time: {entry.timestamp})

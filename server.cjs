@@ -10,6 +10,7 @@ const {
   GraphQLObjectType,
   GraphQLString,
   GraphQLInt,
+  GraphQLList,
 } = require("graphql");
 //* Subscription server—the clerk handling live book deliveries
 const { SubscriptionServer } = require("subscriptions-transport-ws");
@@ -30,11 +31,18 @@ const GridType = new GraphQLObjectType({
   },
 });
 
-//* Dummy Query type—required by GraphQL, even if unused, to keep the library open
+//* Query type—the static book request desk, serving mock grid data
 const Query = new GraphQLObjectType({
   name: "Query",
   fields: {
-    dummy: { type: GraphQLString }, //* A placeholder field
+    grid: {
+      type: new GraphQLList(GridType), //* Returns a list of grid books
+      resolve: () => [
+        { id: "1", voltage: 230, timestamp: new Date().toISOString() },
+        { id: "2", voltage: 225, timestamp: new Date().toISOString() },
+        { id: "3", voltage: 235, timestamp: new Date().toISOString() },
+      ], //* Mock static data
+    },
   },
 });
 
