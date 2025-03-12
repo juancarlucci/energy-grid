@@ -57,6 +57,9 @@ function App() {
     //* Simulate subscription with interval
     const interval = setInterval(() => {
       setLiveData((prev) =>
+        //* Key Detail: setLiveData in useEffect creates a new array
+        //* each time (via prev.map), so liveData’s reference changes every 3 seconds, triggering useMemo.
+        //* But the JSX output is stable for unchanged items thanks to key={entry.id}.
         prev.map((entry) => ({
           ...entry,
           voltage: entry.voltage + Math.floor(Math.random() * 10) - 5, //* Random fluctuation
@@ -83,6 +86,11 @@ function App() {
 
   //* Optimize rendering with useMemo
   const renderedGrid = useMemo(() => {
+    //* Does It Fully Prevent Re-Renders?
+    //* No: useMemo doesn’t stop the component
+    //* from re-rendering (e.g., when liveData updates).
+    //* It prevents unnecessary recomputation of renderedGrid.
+    //* React still diffs the Virtual DOM, but key={entry.id} ensures unchanged <li> elements don’t update in the real DOM.
     return liveData.map((entry) => (
       <li key={entry.id}>
         Voltage: {entry.voltage} V (ID: {entry.id}, Time: {entry.timestamp})

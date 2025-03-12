@@ -5,34 +5,44 @@ import {
   InMemoryCache,
   ApolloProvider,
   HttpLink,
+  split,
 } from "@apollo/client";
+import { WebSocketLink } from "@apollo/client/link/ws";
+import { getMainDefinition } from "@apollo/client/utilities";
 import App from "./App.tsx";
 import "./index.css";
 
-//* Why in main.tsx? This is the entry point of your app—like the town’s only library HQ.
-//* You set it up here because it needs to be established once, at the top level, and
-//* made available to every part of the app (every component) via ApolloProvider.
-//* Putting it in main.tsx ensures it’s ready before any “readers” (components) start asking for books (data).
+// HTTP link for queries (GraphQLZero)
+const httpLink = new HttpLink({
+  uri: "https://graphqlzero.almansi.me/api",
+});
 
-//* Initialize Apollo Client
-//* ApolloClient as the central library headquarters.
-//* It’s the hub that manages all the books (data),
-//* knows where to get them (the GraphQL server), and keeps them organized in storage (the cache).
-//* Central vs. Local: ApolloClient is the global brain (in main.tsx),
-//* while useQuery is the local hands (in App.tsx, or any component).
+// WebSocket link for subscriptions (local mock server)
+const wsLink = new WebSocketLink({
+  uri: "ws://localhost:4000/graphql",
+  options: { reconnect: true },
+});
+
+// Split traffic: subscriptions via WS, queries via HTTP
+const splitLink = split(
+  ({ query }) => {
+    const definition = getMainDefinition(query);
+    return (
+      definition.kind === "OperationDefinition" &&
+      definition.operation === "subscription"
+    );
+  },
+  wsLink,
+  httpLink
+);
+
 const client = new ApolloClient({
-  link: new HttpLink({
-    uri: "https://graphqlzero.almansi.me/api", // Mock GraphQL API
-  }),
-  //* main.tsx sets up new InMemoryCache(). This creates a JavaScript object in the browser’s memory, managed by Apollo.
-  //* When useQuery fetches GET_POSTS, the response (e.g., posts with IDs and titles) gets stored in this object,
-  //* not on your MacBook’s SSD or an external server.
+  link: splitLink,
   cache: new InMemoryCache(),
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {/* main.tsx builds the library (ApolloClient) and gives every branch a library card (ApolloProvider). */}
     <ApolloProvider client={client}>
       <App />
     </ApolloProvider>
