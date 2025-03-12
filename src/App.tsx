@@ -24,7 +24,7 @@ const GRID_SUBSCRIPTION = gql`
   }
 `;
 
-//* Mock grid data type
+// Mock grid data type
 type GridEntry = {
   id: string;
   voltage: number;
@@ -53,6 +53,7 @@ function App() {
 
   const { data: subData, error: subError } = useSubscription(GRID_SUBSCRIPTION);
   const [liveData, setLiveData] = useState<GridEntry[]>([]);
+  const [updatedId, setUpdatedId] = useState<string | null>(null); //* Track last updated ID for highlight
 
   //* Combine initial query data with subscription updates
   useEffect(() => {
@@ -70,6 +71,8 @@ function App() {
       setLiveData((prev) => {
         const newEntry = subData.gridUpdate;
         const exists = prev.some((entry) => entry.id === newEntry.id);
+        setUpdatedId(newEntry.id); //* Mark this ID for a visual flash
+        setTimeout(() => setUpdatedId(null), 500); //* Clear highlight after 0.5s
         return exists
           ? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry)) //* Only update matching ID
           : [...prev, newEntry]; //* Add new entry if ID doesn’t exist
@@ -79,17 +82,18 @@ function App() {
 
   //* Optimize rendering with useMemo
   const renderedGrid = useMemo(() => {
-    //* Does It Fully Prevent Re-Renders?
-    //* No: useMemo doesn’t stop the component
-    //* from re-rendering (e.g., when liveData updates).
-    //* It prevents unnecessary recomputation of renderedGrid.
-    //* React still diffs the Virtual DOM, but key={entry.id} ensures unchanged <li> elements don’t update in the real DOM.
+    //* Prevents recomputation unless liveData changes; keys ensure stable DOM updates
     return liveData.map((entry) => (
-      <li key={entry.id}>
+      <li
+        key={entry.id}
+        style={{
+          backgroundColor: entry.id === updatedId ? "#387938" : "transparent",
+        }} //* Flash green on update
+      >
         Voltage: {entry.voltage} V (ID: {entry.id}, Time: {entry.timestamp})
       </li>
     ));
-  }, [liveData]);
+  }, [liveData, updatedId]);
 
   if (queryLoading && !queryData) return <p>Loading grid data...</p>;
   if (queryError) return <p>Error: {queryError.message}</p>;
@@ -98,7 +102,7 @@ function App() {
   return (
     <div>
       <h1>Energy Grid Dashboard</h1>
-      <p>Real-time updates via GraphQL subscription</p>
+      <p>Real-time updates via GraphQL subscription (ID 1 updates every 3s)</p>
       <ul>{renderedGrid}</ul>
     </div>
   );
