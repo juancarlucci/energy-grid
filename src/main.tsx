@@ -41,8 +41,8 @@ const splitLink = split(
 
 //* ApolloClient: The library headquarters managing book storage (cache) and deliveries (links)
 const client = new ApolloClient({
-  link: splitLink, // Routes requests to the right delivery service
-  cache: new InMemoryCache(), // Stores books in the local branch’s shelves
+  link: splitLink, //* Routes requests to the right delivery service
+  cache: new InMemoryCache(), //* Stores books in the local branch’s shelves
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
