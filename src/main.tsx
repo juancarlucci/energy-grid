@@ -16,14 +16,17 @@ import "./index.css";
 const httpLink = new HttpLink({
   uri: "https://graphqlzero.almansi.me/api",
 });
+// WebSocket link for subscriptions (local mock server)
 
-//* WebSocket link: A live courier service delivering real-time book updates (subscriptions) from our local library server
+//* WebSocket linkfor subscriptions (local mock server):
+//* A live courier service delivering real-time book updates (subscriptions) from our local library server
 const wsLink = new WebSocketLink({
   uri: "ws://localhost:4000/graphql",
-  options: { reconnect: true }, // Keeps the courier coming back if the line drops
+  options: { reconnect: true }, //* Keeps the courier coming back if the line drops
 });
 
-//* Split traffic: The library clerk deciding whether to use the truck (HTTP) for regular books or the courier (WS) for live updates
+//* Split traffic: subscriptions via WS, queries via HTTP
+//* The library clerk deciding whether to use the truck (HTTP) for regular books or the courier (WS) for live updates
 const splitLink = split(
   ({ query }) => {
     const definition = getMainDefinition(query);
