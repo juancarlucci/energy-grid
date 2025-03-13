@@ -1,4 +1,4 @@
-import { useQuery, useSubscription, gql } from "@apollo/client";
+import { useQuery, useMutation, useSubscription, gql } from "@apollo/client";
 import { useState, useEffect, useMemo } from "react";
 
 //* Define a GraphQL query for static grid data from local server
@@ -25,7 +25,17 @@ const GRID_SUBSCRIPTION = gql`
   }
 `;
 
-// Mock grid data type
+const UPDATE_VOLTAGE = gql`
+  mutation UpdateVoltage($id: String!, $voltage: Int!) {
+    updateVoltage(id: $id, voltage: $voltage) {
+      id
+      voltage
+      timestamp
+    }
+  }
+`;
+
+//* Mock grid data type
 type GridEntry = {
   id: string;
   voltage: number;
@@ -51,7 +61,7 @@ function App() {
   } = useQuery(GET_GRID_DATA, {
     fetchPolicy: "cache-and-network", //* Use cache first, then update with network
   });
-
+  const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const { data: subData, error: subError } = useSubscription(GRID_SUBSCRIPTION);
   const [liveData, setLiveData] = useState<GridEntry[]>([]);
   const [updatedId, setUpdatedId] = useState<string | null>(null); //* Track last updated ID for highlight
@@ -77,6 +87,9 @@ function App() {
           : [...prev, newEntry]; //* Add new entry if ID doesn’t exist
       });
     }
+
+    //* No return function here since there’s no ongoing process (like an interval) to stop.
+    //* useSubscription handles its own cleanup via Apollo.
   }, [queryData, subData]);
 
   //* Format timestamp for readability
@@ -86,6 +99,39 @@ function App() {
       minute: "2-digit",
       second: "2-digit",
     });
+
+  const handleUpdateVoltage = (id: string) => {
+    const newVoltage = Math.floor(Math.random() * 20) + 220; // Random 220-239
+    updateVoltage({
+      variables: { id, voltage: newVoltage },
+      optimisticResponse: {
+        updateVoltage: {
+          id,
+          voltage: newVoltage,
+          timestamp: new Date().toISOString(),
+          __typename: "Grid",
+        },
+      },
+      update: (cache, { data }) => {
+        const updatedEntry = data?.updateVoltage;
+        if (updatedEntry) {
+          const cachedData = cache.readQuery<{ grid: GridEntry[] }>({
+            query: GET_GRID_DATA,
+          });
+          if (cachedData) {
+            cache.writeQuery({
+              query: GET_GRID_DATA,
+              data: {
+                grid: cachedData.grid.map((entry) =>
+                  entry.id === updatedEntry.id ? updatedEntry : entry
+                ),
+              },
+            });
+          }
+        }
+      },
+    });
+  };
 
   //* Optimize rendering with useMemo
   const renderedGrid = useMemo(() => {
@@ -99,6 +145,9 @@ function App() {
       >
         Voltage: {entry.voltage} V (ID: {entry.id}, Time:{" "}
         {formatTimestamp(entry.timestamp)}){" "}
+        <button onClick={() => handleUpdateVoltage(entry.id)}>
+          Update Voltage
+        </button>
       </li>
     ));
   }, [liveData, updatedId]);

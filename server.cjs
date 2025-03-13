@@ -21,6 +21,13 @@ const server = createServer((req, res) => {
   res.end("GraphQL WebSocket Server");
 });
 
+// Mock in-memory store for grid data
+let gridData = [
+  { id: "1", voltage: 230, timestamp: new Date().toISOString() },
+  { id: "2", voltage: 225, timestamp: new Date().toISOString() },
+  { id: "3", voltage: 235, timestamp: new Date().toISOString() },
+];
+
 //* Mock Grid Data Type—a book template defining id, voltage, and timestamp
 const GridType = new GraphQLObjectType({
   name: "Grid",
@@ -42,6 +49,28 @@ const Query = new GraphQLObjectType({
         { id: "2", voltage: 225, timestamp: new Date().toISOString() },
         { id: "3", voltage: 235, timestamp: new Date().toISOString() },
       ], //* Mock static data
+    },
+  },
+});
+
+const Mutation = new GraphQLObjectType({
+  name: "Mutation",
+  fields: {
+    updateVoltage: {
+      type: GridType,
+      args: {
+        id: { type: GraphQLString },
+        voltage: { type: GraphQLInt },
+      },
+      resolve: (_, { id, voltage }) => {
+        const entry = gridData.find((item) => item.id === id);
+        if (entry) {
+          entry.voltage = voltage;
+          entry.timestamp = new Date().toISOString();
+          return entry;
+        }
+        return null; // Or throw an error
+      },
     },
   },
 });
@@ -75,6 +104,7 @@ const Subscription = new GraphQLObjectType({
 //* Schema—the library’s master catalog, now with a query section for validity
 const schema = new GraphQLSchema({
   query: Query, //*  Added to satisfy GraphQL requirements. Static book requests
+  mutation: Mutation,
   subscription: Subscription, //* Live book deliveries
 });
 
