@@ -63,34 +63,55 @@ function App() {
   });
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const { data: subData, error: subError } = useSubscription(GRID_SUBSCRIPTION);
-  const [liveData, setLiveData] = useState<GridEntry[]>([]);
+  // const [liveData, setLiveData] = useState<GridEntry[]>([]);
   const [updatedId, setUpdatedId] = useState<string | null>(null); //* Track last updated ID for highlight
 
-  //* Combine initial query data with subscription updates
-  useEffect(() => {
-    if (queryData) {
-      const initialData: GridEntry[] = queryData.grid; //* Now directly from local server
-      setLiveData(initialData);
-    }
+  //* Combine query and subscription data via cache
+  const liveData = useMemo(() => {
+    if (!queryData?.grid) return [];
+    const grid = [...queryData.grid];
     if (subData?.gridUpdate) {
-      //* checks if a new book arrived from the subscription.
-      setLiveData((prev) => {
-        //* updates the branch’s display shelf (liveData):
-        //*If id: "1" exists, it replaces that entry with the new book.
-        //* If not (unlikely here), it adds it.
-        const newEntry = subData.gridUpdate; //* extracts the book’s contents ({ id: "1", voltage: 232, timestamp: "..." }).
-        const exists = prev.some((entry) => entry.id === newEntry.id);
-        setUpdatedId(newEntry.id); //* Mark this ID for a visual flash
-        setTimeout(() => setUpdatedId(null), 500); //* Clear highlight after 0.5s
-        return exists
-          ? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry)) //* Only update matching ID
-          : [...prev, newEntry]; //* Add new entry if ID doesn’t exist
-      });
+      const subEntry = subData.gridUpdate;
+      const index = grid.findIndex((entry) => entry.id === subEntry.id);
+      if (index !== -1) grid[index] = subEntry;
+      else grid.push(subEntry);
     }
-
-    //* No return function here since there’s no ongoing process (like an interval) to stop.
-    //* useSubscription handles its own cleanup via Apollo.
+    return grid;
   }, [queryData, subData]);
+
+  //* Highlight subscription updates
+  useEffect(() => {
+    if (subData?.gridUpdate) {
+      setUpdatedId(subData.gridUpdate.id);
+      setTimeout(() => setUpdatedId(null), 500);
+    }
+  }, [subData]);
+
+  // //* Combine initial query data with subscription updates
+  // useEffect(() => {
+  //   if (queryData) {
+  //     const initialData: GridEntry[] = queryData.grid; //* Now directly from local server
+  //     setLiveData(initialData);
+  //   }
+  //   if (subData?.gridUpdate) {
+  //     //* checks if a new book arrived from the subscription.
+  //     setLiveData((prev) => {
+  //       //* updates the branch’s display shelf (liveData):
+  //       //*If id: "1" exists, it replaces that entry with the new book.
+  //       //* If not (unlikely here), it adds it.
+  //       const newEntry = subData.gridUpdate; //* extracts the book’s contents ({ id: "1", voltage: 232, timestamp: "..." }).
+  //       const exists = prev.some((entry) => entry.id === newEntry.id);
+  //       setUpdatedId(newEntry.id); //* Mark this ID for a visual flash
+  //       setTimeout(() => setUpdatedId(null), 500); //* Clear highlight after 0.5s
+  //       return exists
+  //         ? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry)) //* Only update matching ID
+  //         : [...prev, newEntry]; //* Add new entry if ID doesn’t exist
+  //     });
+  //   }
+
+  //   //* No return function here since there’s no ongoing process (like an interval) to stop.
+  //   //* useSubscription handles its own cleanup via Apollo.
+  // }, [queryData, subData]);
 
   //* Format timestamp for readability
   const formatTimestamp = (timestamp: string) =>
@@ -130,7 +151,12 @@ function App() {
           }
         }
       },
-    });
+    })
+      .then(() => {
+        setUpdatedId(id);
+        setTimeout(() => setUpdatedId(null), 500);
+      })
+      .catch((error) => console.error("Mutation error:", error));
   };
 
   //* Optimize rendering with useMemo

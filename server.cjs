@@ -44,11 +44,7 @@ const Query = new GraphQLObjectType({
   fields: {
     grid: {
       type: new GraphQLList(GridType), //* Returns a list of grid books
-      resolve: () => [
-        { id: "1", voltage: 230, timestamp: new Date().toISOString() },
-        { id: "2", voltage: 225, timestamp: new Date().toISOString() },
-        { id: "3", voltage: 235, timestamp: new Date().toISOString() },
-      ], //* Mock static data
+      resolve: () => gridData,
     },
   },
 });
@@ -86,12 +82,12 @@ const Subscription = new GraphQLObjectType({
         //* subscribe: async function* () is the resolver (the writer).
         //* It’s a generator (note the *) that “yields” a new book every 3 seconds.
         while (true) {
+          const entry = gridData.find((item) => item.id === "1"); //* Use current gridData
           yield {
+            //* courier bag labeled gridUpdate.
             gridUpdate: {
-              //* courier bag labeled gridUpdate.
-              id: "1",
-              voltage: 230 + Math.floor(Math.random() * 10) - 5,
-              timestamp: new Date().toISOString(),
+              ...entry,
+              timestamp: new Date().toISOString(), //* Update timestamp only
             },
           };
           await new Promise((resolve) => setTimeout(resolve, 3000)); // Every 3 seconds
