@@ -58,26 +58,39 @@ function App() {
     loading: queryLoading,
     error: queryError,
     data: queryData,
+    refetch,
   } = useQuery(GET_GRID_DATA, {
     fetchPolicy: "cache-and-network", //* Use cache first, then update with network
   });
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const { data: subData, error: subError } = useSubscription(GRID_SUBSCRIPTION);
-  // const [liveData, setLiveData] = useState<GridEntry[]>([]);
   const [updatedId, setUpdatedId] = useState<string | null>(null); //* Track last updated ID for highlight
+  const [lastMutation, setLastMutation] = useState<GridEntry | null>(null); //* Track latest mutation
 
-  //* Combine query and subscription data via cache
+  //* Combine query, subscription, and mutation data
   const liveData = useMemo(() => {
     if (!queryData?.grid) return [];
     const grid = [...queryData.grid];
-    if (subData?.gridUpdate) {
+
+    //* Apply last mutation first (takes precedence)
+    if (lastMutation) {
+      const index = grid.findIndex((entry) => entry.id === lastMutation.id);
+      if (index !== -1) grid[index] = lastMutation;
+      else grid.push(lastMutation);
+    }
+
+    //* Then apply subscription data (if not overridden by mutation)
+    if (
+      subData?.gridUpdate &&
+      (!lastMutation || subData.gridUpdate.timestamp > lastMutation.timestamp)
+    ) {
       const subEntry = subData.gridUpdate;
       const index = grid.findIndex((entry) => entry.id === subEntry.id);
       if (index !== -1) grid[index] = subEntry;
       else grid.push(subEntry);
     }
     return grid;
-  }, [queryData, subData]);
+  }, [queryData, subData, lastMutation]);
 
   //* Highlight subscription updates
   useEffect(() => {
@@ -86,32 +99,6 @@ function App() {
       setTimeout(() => setUpdatedId(null), 500);
     }
   }, [subData]);
-
-  // //* Combine initial query data with subscription updates
-  // useEffect(() => {
-  //   if (queryData) {
-  //     const initialData: GridEntry[] = queryData.grid; //* Now directly from local server
-  //     setLiveData(initialData);
-  //   }
-  //   if (subData?.gridUpdate) {
-  //     //* checks if a new book arrived from the subscription.
-  //     setLiveData((prev) => {
-  //       //* updates the branch’s display shelf (liveData):
-  //       //*If id: "1" exists, it replaces that entry with the new book.
-  //       //* If not (unlikely here), it adds it.
-  //       const newEntry = subData.gridUpdate; //* extracts the book’s contents ({ id: "1", voltage: 232, timestamp: "..." }).
-  //       const exists = prev.some((entry) => entry.id === newEntry.id);
-  //       setUpdatedId(newEntry.id); //* Mark this ID for a visual flash
-  //       setTimeout(() => setUpdatedId(null), 500); //* Clear highlight after 0.5s
-  //       return exists
-  //         ? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry)) //* Only update matching ID
-  //         : [...prev, newEntry]; //* Add new entry if ID doesn’t exist
-  //     });
-  //   }
-
-  //   //* No return function here since there’s no ongoing process (like an interval) to stop.
-  //   //* useSubscription handles its own cleanup via Apollo.
-  // }, [queryData, subData]);
 
   //* Format timestamp for readability
   const formatTimestamp = (timestamp: string) =>
@@ -123,6 +110,11 @@ function App() {
 
   const handleUpdateVoltage = (id: string) => {
     const newVoltage = Math.floor(Math.random() * 20) + 220; // Random 220-239
+    const optimisticEntry = {
+      id,
+      voltage: newVoltage,
+      timestamp: new Date().toISOString(),
+    };
     updateVoltage({
       variables: { id, voltage: newVoltage },
       optimisticResponse: {
@@ -153,8 +145,10 @@ function App() {
       },
     })
       .then(() => {
+        setLastMutation(optimisticEntry); // Store mutation locally
         setUpdatedId(id);
         setTimeout(() => setUpdatedId(null), 500);
+        refetch(); //* Force query refresh
       })
       .catch((error) => console.error("Mutation error:", error));
   };
@@ -170,7 +164,7 @@ function App() {
         }} //* Flash green on update
       >
         Voltage: {entry.voltage} V (ID: {entry.id}, Time:{" "}
-        {formatTimestamp(entry.timestamp)}){" "}
+        {formatTimestamp(entry.timestamp)})
         <button onClick={() => handleUpdateVoltage(entry.id)}>
           Update Voltage
         </button>

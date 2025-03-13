@@ -59,13 +59,16 @@ const Mutation = new GraphQLObjectType({
         voltage: { type: GraphQLInt },
       },
       resolve: (_, { id, voltage }) => {
+        console.log(`Mutation received: id=${id}, voltage=${voltage}`);
         const entry = gridData.find((item) => item.id === id);
         if (entry) {
           entry.voltage = voltage;
           entry.timestamp = new Date().toISOString();
+          console.log(`Updated gridData: ${JSON.stringify(gridData)}`);
           return entry;
         }
-        return null; // Or throw an error
+        console.log(`No entry found for id: ${id}`);
+        return null; //* Or throw an error
       },
     },
   },
@@ -83,13 +86,17 @@ const Subscription = new GraphQLObjectType({
         //* It’s a generator (note the *) that “yields” a new book every 3 seconds.
         while (true) {
           const entry = gridData.find((item) => item.id === "1"); //* Use current gridData
-          yield {
+          const newVoltage = entry.voltage + Math.floor(Math.random() * 10) - 5; // Simulate fluctuation
+          entry.voltage = Math.max(220, Math.min(239, newVoltage)); // Keep within 220-239
+          entry.timestamp = new Date().toISOString();
+          const update = {
             //* courier bag labeled gridUpdate.
             gridUpdate: {
               ...entry,
-              timestamp: new Date().toISOString(), //* Update timestamp only
             },
           };
+          console.log(`Subscription yielding: ${JSON.stringify(update)}`);
+          yield update; // Single yield with defined object
           await new Promise((resolve) => setTimeout(resolve, 3000)); // Every 3 seconds
         }
       },
@@ -99,7 +106,7 @@ const Subscription = new GraphQLObjectType({
 
 //* Schema—the library’s master catalog, now with a query section for validity
 const schema = new GraphQLSchema({
-  query: Query, //*  Added to satisfy GraphQL requirements. Static book requests
+  query: Query, //* Added to satisfy GraphQL requirements. Static book requests
   mutation: Mutation,
   subscription: Subscription, //* Live book deliveries
 });
@@ -113,7 +120,6 @@ const wsServer = new WebSocketServer({
 //* Start the library at port 4000 and set up the subscription clerk
 server.listen(4000, () => {
   console.log("WebSocket server running on ws://localhost:4000/graphql");
-
   SubscriptionServer.create(
     {
       schema, //* The catalog to use
