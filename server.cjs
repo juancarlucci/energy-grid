@@ -54,10 +54,12 @@ const Subscription = new GraphQLObjectType({
     gridUpdate: {
       type: GridType,
       subscribe: async function* () {
-        //* Generator function—delivers new books every 3 seconds
+        //* subscribe: async function* () is the resolver (the writer).
+        //* It’s a generator (note the *) that “yields” a new book every 3 seconds.
         while (true) {
           yield {
             gridUpdate: {
+              //* courier bag labeled gridUpdate.
               id: "1",
               voltage: 230 + Math.floor(Math.random() * 10) - 5,
               timestamp: new Date().toISOString(),
