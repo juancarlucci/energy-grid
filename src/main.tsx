@@ -20,7 +20,8 @@ const client = new ApolloClient({
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ApolloProvider client={client}>
-      {/* Delivers the library services to all branch components */}
+      {/* Delivers the library services to all branch components 
+       like handing out library cards.*/}
       <App />
     </ApolloProvider>
   </React.StrictMode>
