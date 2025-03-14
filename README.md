@@ -752,6 +752,7 @@ new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" 
 
 const renderedGrid = useMemo(() => {
 return liveData.map((entry) => (
+
 <li
 key={entry.id}
 style={{ backgroundColor: entry.id === updatedId ? "#e0ffe0" : "transparent" }} >
@@ -809,3 +810,200 @@ useEffect reduces re-renders (e.g., no update if subData is unchanged).
 useMemo reduces computation (e.g., no re-mapping if liveData is stable).
 
 Together: Fewer state changes + less work per render = snappy app.
+
+What is Schema Design?
+In GraphQL, the schema is a formal description of your API’s data and operations, written in the GraphQL Schema Definition Language (SDL) or built programmatically (like in your JavaScript code). It’s like the floor plan of a library: it lists every book (data types), how you can borrow them (queries), update them (mutations), or get new editions live (subscriptions).
+Purpose: It’s a contract between the client (your App.tsx) and server (server.cjs), ensuring both agree on what’s possible.
+
+Your Schema: Defines Grid objects and operations (grid, updateVoltage, gridUpdate).
+
+Core Components of Schema Design
+
+1. Types
+   Types define the shape of your data—objects, scalars (like String, Int), lists, etc. They’re the building blocks.
+   Your Example (server.cjs):
+   javascript
+   const GridType = new GraphQLObjectType({
+   name: "Grid",
+   fields: {
+   id: { type: GraphQLString },
+   voltage: { type: GraphQLInt },
+   timestamp: { type: GraphQLString },
+   },
+   });
+
+Breakdown:
+GridType: An object type named Grid.
+
+fields: Properties (id, voltage, timestamp) with scalar types (GraphQLString, GraphQLInt).
+
+No ! (non-nullable marker)—fields can return null if undefined.
+
+SDL Equivalent:
+graphql
+type Grid {
+id: String
+voltage: Int
+timestamp: String
+}
+
+Analogy: Grid is a book template—every Grid object has an id (call number), voltage (page count), and timestamp (publish date).
+
+2. Root Types (Operations)
+   GraphQL has three root operation types: Query, Mutation, and Subscription. These are entry points for client requests.
+   a. Query
+   The read-only entry point—defines what data clients can fetch.
+   Your Query:
+   javascript
+   const Query = new GraphQLObjectType({
+   name: "Query",
+   fields: {
+   grid: {
+   type: new GraphQLList(GridType),
+   resolve: () => gridData,
+   },
+   },
+   });
+
+Breakdown:
+grid: Returns a list (GraphQLList) of Grid objects.
+
+resolve: Function returning gridData (your mock array).
+
+SDL:
+graphql
+type Query {
+grid: [Grid]
+}
+
+Client Request: query { grid { id voltage } } → Gets all Grid items’ id and voltage.
+
+Analogy: Query is the library’s checkout desk—you ask for books (grid), and it hands them over.
+
+b. Mutation
+The write entry point—defines how clients can modify data.
+Your Mutation:
+javascript
+const Mutation = new GraphQLObjectType({
+name: "Mutation",
+fields: {
+updateVoltage: {
+type: GridType,
+args: { id: { type: GraphQLString }, voltage: { type: GraphQLInt } },
+resolve: (\_, { id, voltage }) => {
+const entry = gridData.find((item) => item.id === id);
+if (entry) {
+entry.voltage = voltage;
+entry.timestamp = new Date().toISOString();
+return entry;
+}
+return null;
+},
+},
+},
+});
+
+Breakdown:
+updateVoltage: Returns a single Grid object.
+
+args: Inputs (id, voltage)—like function parameters.
+
+resolve: Updates gridData and returns the modified entry.
+
+Client Request: mutation { updateVoltage(id: "1", voltage: 225) { id voltage } }.
+
+Analogy: Mutation is the returns desk—you submit a form to update a book’s details.
+
+c. Subscription
+The real-time entry point—defines live data streams.
+Your Subscription:
+javascript
+const Subscription = new GraphQLObjectType({
+name: "Subscription",
+fields: {
+gridUpdate: {
+type: GridType,
+subscribe: async function* () {
+while (true) {
+const entry = gridData.find((item) => item.id === "1");
+const newVoltage = entry.voltage + Math.floor(Math.random() * 10) - 5;
+entry.voltage = Math.max(220, Math.min(239, newVoltage));
+entry.timestamp = new Date().toISOString();
+yield { gridUpdate: { ...entry } };
+await new Promise((resolve) => setTimeout(resolve, 3000));
+}
+},
+},
+},
+});
+
+Breakdown:
+gridUpdate: Returns a Grid object stream.
+
+subscribe: A generator yielding updates every 3 seconds.
+
+Client Request: subscription { gridUpdate { id voltage timestamp } }.
+
+Analogy: Subscription is a subscription service—new editions arrive automatically.
+
+3. Schema Definition
+   The schema ties it all together, specifying the root types.
+   Your Schema:
+
+const schema = new GraphQLSchema({
+query: Query,
+mutation: Mutation,
+subscription: Subscription,
+});
+
+Purpose: Tells GraphQL, “Here’s what clients can do.”
+
+Schema Design Principles
+
+1. Start with the Client
+   Design based on what your UI needs—not the database.
+   Your App: Needs grid data (id, voltage, timestamp), an update mechanism (updateVoltage), and live updates (gridUpdate).
+
+Tip: Sketch your React components first, then build types to match.
+
+2. Keep It Simple
+   Avoid overcomplicating—start with basic types and operations.
+   Your Design: One Grid type, three operations—lean and focused.
+
+Example Expansion: Add status: String to Grid later if needed.
+
+3. Use Strong Typing
+   Leverage GraphQL’s type system for safety.
+   Option: Make fields non-nullable (e.g., id: String!) if they’re always present.
+
+Your Choice: Nullable fields (id: String) allow null if data’s missing—flexible but less strict.
+
+4. Normalize Data
+   Use IDs to reference objects, enabling cache efficiency (Apollo loves this).
+   Your App: id uniquely identifies each Grid entry—perfect for normalization.
+
+5. Plan for Evolution
+   Add fields or types without breaking existing clients.
+   Example: Add current: Int to Grid—old queries still work.
+
+How It Works in Your App
+Schema in Action:
+Query (GET_GRID_DATA):
+Client asks for grid.
+
+Server resolves gridData → [{id: "1", ...}, ...].
+
+Mutation (UPDATE_VOLTAGE):
+Client sends updateVoltage(id: "1", voltage: 225).
+
+Server updates gridData, returns {id: "1", voltage: 225, ...}.
+
+Subscription (GRID_SUBSCRIPTION):
+Client subscribes to gridUpdate.
+
+Server yields {id: "1", voltage: 228, ...} every 3 seconds.
+
+Resolvers:
+Logic: Your resolve and subscribe functions fetch or compute data.
+
+Debug Example: We fixed gridUpdate to update voltage dynamically—schema stayed the same, but behavior improved.
