@@ -1,10 +1,10 @@
 # Energy Grid Dashboard
 
-Welcome to the **Energy Grid Dashboard**, a React-based web application that simulates real-time monitoring of an energy grid using GraphQL queries and subscriptions. Built with Apollo Client, this project fetches mock static data from GraphQLZero and delivers live voltage updates via a local WebSocket server.
+Welcome to the **Energy Grid Dashboard**, a React-based web application that simulates real-time monitoring of an energy grid using GraphQL queries and subscriptions. Built with Apollo Client, this project fetches mock static data and delivers live voltage updates via a local WebSocket server.
 
 ## Overview
 
-This app mimics a utility dashboard for tracking grid metrics (e.g., voltage) across multiple nodes. It combines historical data with live updates, offering a seamless user experience powered by Apollo Client’s caching and subscription features. Think of it as a small-town library system: static data is like books fetched from a distant warehouse, while real-time updates arrive via a trusty courier from a local publishing house.
+This app mimics a utility dashboard for tracking grid metrics (e.g., voltage) across multiple nodes. It combines historical data with live updates, offering a seamless user experience powered by Apollo Client’s caching and subscription features. Think of it as a small-town library system: static data is like books fetched from a local warehouse, while real-time updates arrive via a courier from the same warehouse’s live press.
 
 ### Features
 
@@ -24,7 +24,7 @@ This app mimics a utility dashboard for tracking grid metrics (e.g., voltage) ac
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/energy-grid.git
+   git clone https://github.com/juancarlucci/energy-grid.git
    cd energy-grid
    ```
 
@@ -39,31 +39,31 @@ npm run server
 In a separate terminal, launch the app:
 npm run dev
 
-Open your browser to http://localhost:5173 to see the dashboard in action.
+Open the browser to http://localhost:5173 to see the dashboard in action.
 
 ## How It Works: The Library Analogy
 
 Imagine this app as a bustling library ecosystem managing energy grid "books" (data). Here’s how the pieces fit together:
 
-### Apollo Client: The Library Headquarters
+### Apollo Client: The Library Headquarters (main.tsx)
 
 Role: Apollo Client is the central hub—like the library headquarters (HQ)—set up in main.tsx. It manages all data (books), connects to external sources (GraphQL servers), and organizes them in a storage room (the InMemoryCache).
 
 Why in main.tsx? It’s the app’s entry point—the town’s only HQ. Initialized here with ApolloProvider, it ensures every component (branch library) has a library card to access data. One HQ serves all, keeping the cache shared and efficient.
 
-Behind the Scenes: Configured with a WebSocket link (ws://localhost:4000/graphql) for both queries and subscriptions, it’s the backbone fetching and storing grid data in RAM for quick access.
+Behind the Scenes: Configured with a WebSocket link (ws://localhost:4000/graphql) for queries and subscriptions, it fetches and stores grid data in RAM for quick access.
 
 ### useQuery: The Branch Librarian
 
 Role: In App.tsx, useQuery acts as a friendly librarian at a local branch. It doesn’t own the books—that’s HQ’s job—but requests specific titles (e.g., GET_GRID_DATA) from Apollo Client and delivers them to the UI (readers).
 
-Why in App.tsx? This is where the data is needed—like a branch serving its readers. Each component can have its own librarian tailored to its needs, fetching static grid data here while subscriptions handle live updates.
+In App.tsx: This is where data is displayed—like a branch serving its readers. It fetches static grid data, while subscriptions handle live updates.
 
-Flow: useQuery asks HQ for initial data, which Apollo fetches from GraphQLZero, caches, and returns as loading, error, or data states.
+Flow: useQuery asks HQ for initial data, which Apollo fetches from erver.cjs, caches, and returns as loading, error, or data states.
 
 ### useSubscription: The Live Courier
 
-Role: Also in App.tsx, useSubscription is like a courier delivering real-time updates (e.g., GRID_SUBSCRIPTION) from the local WebSocket server at server.cjs.
+Role: In App.tsx, useSubscription is like a courier delivering real-time updates (e.g., GRID_SUBSCRIPTION) from the local WebSocket server at server.cjs.
 
 How It Works: It listens for gridUpdate events, updating only id: "1" in the liveData state every 3 seconds, with a green flash to highlight the change.
 
@@ -71,19 +71,15 @@ Why Here? Paired with useQuery, it keeps the branch current with live grid readi
 
 ### The Cache: The Storage Room
 
-Role: The InMemoryCache in Apollo Client is the storage room in RAM, holding grid data (e.g., Grid:1, Grid:2) for fast retrieval.
+Role: The InMemoryCache in Apollo Client holds grid data (e.g., Grid:1, Grid:2) in RAM for fast retrieval.
 
 Normalization: Data is split into objects by ID (e.g., Post:1, Post:2) with query keys (e.g., Query.GetGridData) acting like catalog cards pointing to them. This avoids duplicates and speeds up access.
 
 In Action: Initial query data is cached, and subscription updates for id: "1" refresh the cache, keeping the UI in sync without redundant server calls.
 
-### WebSocket Server: The Local Publishing House
+### WebSocket Server: The Local Warehouse and Press (provides both static and live data)
 
-Role: Defined in server.cjs, this is an independent publishing house—not part of HQ—producing and delivering real-time grid updates via subscriptions-transport-ws. Running locally at ws://localhost:4000/graphql, it sends new voltage readings for id: "1" every 3 seconds to HQ’s courier line (WebSocket link), keeping the dashboard current.
-
-### GraphQLZero: The Remote Warehouse
-
-Role: A distant supplier of static books (initial grid data), accessed via HQ’s delivery truck (HTTP link).
+Role: Defined in server.cjs, this is a local warehouse supplying static grid data and a live press sending real-time updates via subscriptions-transport-ws. Running at ws://localhost:4000/graphql, it delivers voltage readings for id: "1" every 3 seconds to HQ’s courier line (WebSocket link), keeping the dashboard current.
 
 ### Project Structure
 
@@ -91,13 +87,13 @@ src/main.tsx: Sets up Apollo Client (HQ) with HTTP and WebSocket links, wrapping
 
 src/App.tsx: Hosts useQuery and useSubscription to fetch and display grid data, with UI optimization via useMemo.
 
-server.cjs: Runs a WebSocket server at ws://localhost:4000/graphql for subscription updates.
+server.cjs: Runs a WebSocket server at ws://localhost:4000/graphql for queries and subscriptions.
 
 package.json: Defines scripts (dev, server) and dependencies (@apollo/client, graphql, subscriptions-transport-ws, ws).
 
 ### Technical Highlights
 
-GraphQL Queries: Fetch static data from GraphQLZero (https://graphqlzero.almansi.me/api).
+GraphQL Queries: Fetch static data from the local server.
 
 Subscriptions: Deliver real-time updates via WebSocket using subscriptions-transport-ws.
 
@@ -108,7 +104,7 @@ Performance: useMemo optimizes rendering, and the cache minimizes network reques
 ### Why This Matters
 
 This project showcases a modern front-end stack:
-Real-Time Data: Demonstrates GraphQL subscriptions for live updates, a key skill for dynamic apps.
+Real-Time Data: Demonstrates GraphQL subscriptions for live updates, a key component for dynamic apps.
 
 Caching: Highlights Apollo’s efficiency in managing data, critical for scalable dashboards.
 
@@ -127,28 +123,24 @@ query: Query, //_ Static book requests
 subscription: Subscription, //_ Live book deliveries
 });
 
-Your App: In server.cjs, the schema lists Grid (a book type with id, voltage, timestamp), a dummy Query section (for Apollo), and a Subscription section (for live gridUpdate deliveries).
-
-Analogy: It’s the master index card file at HQ and the publishing house, telling librarians (and couriers) what books exist (e.g., “Grid books”) and what fields they have (e.g., “voltage chapter”).
+In server.cjs: The schema lists Grid (a book type with id, voltage, timestamp), a Query section for static data, and a Subscription section for live gridUpdate deliveries.
+Analogy: It’s the master index card file at HQ and the warehouse, telling librarians what books exist (e.g., “Grid books”) and their fields (e.g., “voltage chapter”).
 
 #### Query: The Book Request Form
 
-Role: A query is a specific request form a branch librarian (useQuery) submits to HQ to fetch books (data) from the storage room (cache) or external suppliers (GraphQLZero, server.cjs if it had queries).
+Role: A query is a specific request form a branch librarian (useQuery) submits to HQ to fetch books (data) from the storage room (cache) or external suppliers (server.cjs).
 
-In the Ecosystem: Handled by HQ’s delivery truck (HTTP link) or storage room (cache).
-
-Your App: In App.tsx, GET_GRID_DATA is a query:
+In App.tsx, GET_GRID_DATA is a query:
 
 const GET_GRID_DATA = gql`  query GetGridData {
-    posts {
-      data {
-        id
-        title
-      }
+    grid {
+      id
+      voltage
+      timestamp
     }
   }`;
 
-It asks HQ for “posts” books from GraphQLZero, mocked as grid data.
+It asks HQ for “grid” books from server.cjs.
 
 Analogy: A librarian fills out a form (“I need all grid books with IDs and voltages”) and hands it to HQ, which fetches or pulls from the shelves.
 
@@ -158,7 +150,7 @@ Role: A mutation is a request to change or add books in the library—think of i
 
 In the Ecosystem: Sent to HQ, which forwards it to the supplier (GraphQLZero or server.cjs if they supported mutations) and updates the storage room (cache).
 
-Your App: You don’t have mutations yet (GraphQLZero is read-only, and server.cjs is subscription-only), but imagine adding one in server.cjs:
+Server.cjs:
 
 const Mutation = new GraphQLObjectType({
 name: "Mutation",
@@ -180,7 +172,7 @@ Role: A subscription is a standing order for new book editions delivered in real
 
 In the Ecosystem: Managed by the courier line (WebSocket link) from the publishing house (server.cjs) to HQ, then to branch couriers (useSubscription).
 
-Your App: In App.tsx, GRID_SUBSCRIPTION listens for updates:
+In App.tsx, GRID_SUBSCRIPTION listens for updates:
 
 const GRID_SUBSCRIPTION = gql`  subscription OnGridUpdate {
     gridUpdate {
@@ -200,7 +192,7 @@ Role: A type defines the structure of a book —what chapters (fields) it has (e
 
 In the Ecosystem: Part of the schema, used by HQ and the publishing house to ensure books are consistent.
 
-Your App: In server.cjs:
+In server.cjs:
 
 const GridType = new GraphQLObjectType({
 name: "Grid",
@@ -217,51 +209,30 @@ Analogy: A template saying, “All grid books must have an ID page, a voltage ch
 
 Role: A resolver is the logic that “writes” or “finds” a book’s content when a query, mutation, or subscription asks for it.
 
-In the Ecosystem: Lives in the publishing house (server.cjs) or remote warehouse (GraphQLZero) to generate data.
+In the Ecosystem: Lives in the publishing house (server.cjs) or remote warehouse (GraphQLZero, or other server) to generate data.
 
-Your App: In server.cjs, the subscribe function is a resolver:
-
-subscribe: async function* () {
-while (true) {
-yield { gridUpdate: { id: "1", voltage: 230 + Math.floor(Math.random() * 10) - 5, timestamp: new Date().toISOString() } };
-await new Promise((resolve) => setTimeout(resolve, 3000));
-}
-}
-
-(No explicit resolve for queries/mutations yet since they’re minimal.)
-
-Analogy: The publishing house’s writer who pens new grid book editions or fetches existing ones from the back room.
-
-### The Big Picture: Data Flow
-
-Think of this as a book delivery pipeline:
-server.cjs (Publishing House): Writes and sends new “grid update” books every 3 seconds.
-
-Apollo Client (HQ): Receives these books via its courier line (WebSocket) and hands them to the branch.
-
-App.tsx (Branch Library): Uses a courier (useSubscription) to pick up the books and display them in the UI.
-
-Your specific question is about useSubscription(GRID_SUBSCRIPTION)—how does it “know” to get data from server.cjs’s gridUpdate? Let’s trace it.
-
-#### Step 1: server.cjs - The Publishing House Sends Books
-
-In server.cjs, the Subscription type defines what live updates are available:
-Line 51-ish (server.cjs):
+In server.cjs, the subscribe function is a resolver:
 
 const Subscription = new GraphQLObjectType({
 name: "Subscription",
 fields: {
 gridUpdate: {
 type: GridType,
-subscribe: async function* () { //* Generator function—delivers new books every 3 seconds
+subscribe: async function* () {
+//* subscribe: async function* () is the resolver (the writer).
+//* It’s a generator (note the _) that “yields” a new book every 3 seconds.
 while (true) {
-yield {
+const entry = gridData.find((item) => item.id === "1"); //_ Use current gridData
+const newVoltage = entry.voltage + Math.floor(Math.random() _ 10) - 5; // Simulate fluctuation
+entry.voltage = Math.max(220, Math.min(239, newVoltage)); // Keep within 220-239
+entry.timestamp = new Date().toISOString();
+const update = {
+//_ courier bag labeled gridUpdate.
 gridUpdate: {
-id: "1",
-voltage: 230 + Math.floor(Math.random() \* 10) - 5,
-timestamp: new Date().toISOString(),
+...entry,
 },
 };
+yield update; //\* Single yield with defined object
 await new Promise((resolve) => setTimeout(resolve, 3000)); // Every 3 seconds
 }
 },
@@ -269,179 +240,7 @@ await new Promise((resolve) => setTimeout(resolve, 3000)); // Every 3 seconds
 },
 });
 
-What’s Happening:
-Subscription is the catalog section for live updates.
-
-gridUpdate is a subscription field—a specific book series clients can subscribe to.
-
-subscribe: async function* () is the resolver (the writer). It’s a generator (note the *) that “yields” a new book every 3 seconds.
-
-yield { gridUpdate: { id: "1", ... } }: Each book is labeled gridUpdate and contains id, voltage, and timestamp. This matches the GridType template.
-
-Library Analogy: The publishing house prints a new edition of the “Grid Update” book for id: "1" every 3 seconds and puts it in a courier bag labeled gridUpdate.
-
-Output Format: The yielded object is wrapped in a GraphQL response:
-json
-
-{
-"data": {
-"gridUpdate": {
-"id": "1",
-"voltage": 232,
-"timestamp": "2025-03-12T10:00:00Z"
-}
-}
-}
-
-##### Sent Where?
-
-The SubscriptionServer (line 80-ish) attaches this to the WebSocket server (ws://localhost:4000/graphql), which broadcasts it to any subscribed clients.
-
-#### Step 2: main.tsx - HQ Sets Up the Courier Line
-
-In main.tsx, Apollo Client connects to the publishing house:
-Relevant Lines:
-tsx
-const wsLink = new WebSocketLink({
-uri: "ws://localhost:4000/graphql",
-options: { reconnect: true },
-});
-
-const client = new ApolloClient({
-link: wsLink,
-cache: new InMemoryCache(),
-});
-
-What’s Happening:
-WebSocketLink is HQ’s courier line, tuned to ws://localhost:4000/graphql—the publishing house’s address.
-
-client (Apollo Client) uses this link for all GraphQL operations (queries and subscriptions since we dropped the HTTP link).
-
-ApolloProvider makes this client available to all components, like handing out library cards.
-
-Library Analogy: HQ hires a courier service (WebSocket) to pick up books from the publishing house and bring them back to the storage room (cache) or directly to branches.
-
-#### Step 3: App.tsx - The Branch Requests Live Deliveries
-
-In App.tsx, useSubscription subscribes to the gridUpdate series:
-Line 16 (GRID_SUBSCRIPTION Definition):
-tsx
-const GRID_SUBSCRIPTION = gql`  subscription OnGridUpdate {
-    gridUpdate {
-      id
-      voltage
-      timestamp
-    }
-  }`;
-
-What’s Happening:
-gql turns this string into a GraphQL document—a subscription request form.
-
-subscription OnGridUpdate names the request (arbitrary, just for clarity).
-
-gridUpdate { id voltage timestamp } specifies the book series (gridUpdate) and chapters (fields) the branch wants from the publishing house.
-
-This matches the gridUpdate field in server.cjs’s Subscription type.
-
-Library Analogy: The branch fills out a standing order form: “Send me every new edition of the ‘Grid Update’ book with ID, voltage, and timestamp chapters.”
-
-Line 53-ish (useSubscription):
-tsx
-const { data: subData, error: subError } = useSubscription(GRID_SUBSCRIPTION);
-
-What’s Happening:
-useSubscription(GRID_SUBSCRIPTION) is the courier at the branch. It takes the form (GRID_SUBSCRIPTION) and sends it to HQ (Apollo Client).
-
-HQ forwards it via the WebSocket link to server.cjs, saying, “Start sending gridUpdate books.”
-
-server.cjs responds by yielding a new gridUpdate book every 3 seconds, which flows back through the WebSocket to HQ.
-
-Apollo Client delivers this to useSubscription, populating subData with each new book:
-tsx
-subData = {
-gridUpdate: {
-id: "1",
-voltage: 232,
-timestamp: "2025-03-12T10:00:00Z"
-}
-}
-
-Library Analogy: The courier (useSubscription) stands at the branch door, receiving new “Grid Update” books from HQ’s WebSocket courier line every 3 seconds. Each book lands in subData.
-
-#### Step 4: App.tsx - Processing the Delivery
-
-Line 60-ish (useEffect):
-tsx
-useEffect(() => {
-if (queryData) {
-const initialData: GridEntry[] = queryData.grid;
-setLiveData(initialData);
-}
-if (subData?.gridUpdate) {
-setLiveData((prev) => {
-const newEntry = subData.gridUpdate;
-const exists = prev.some((entry) => entry.id === newEntry.id);
-setUpdatedId(newEntry.id); //_ Mark this ID for a visual flash
-setTimeout(() => setUpdatedId(null), 500); //_ Clear highlight after 0.5s
-return exists
-? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry))
-: [...prev, newEntry];
-});
-}
-}, [queryData, subData]);
-
-What’s Happening:
-if (subData?.gridUpdate) checks if a new book arrived from the subscription.
-
-const newEntry = subData.gridUpdate extracts the book’s contents ({ id: "1", voltage: 232, timestamp: "..." }).
-
-setLiveData((prev) => ...) updates the branch’s display shelf (liveData):
-If id: "1" exists, it replaces that entry with the new book.
-
-If not (unlikely here), it adds it.
-
-setUpdatedId triggers the green flash for id: "1".
-
-Library Analogy: When the courier drops off a new “Grid Update” book, the branch librarian (useEffect) takes it, updates the display shelf (liveData), and puts a spotlight (green flash) on it for 0.5 seconds.
-
-### The Detailed Flow
-
-Publishing House (server.cjs):
-Every 3 seconds, yields a gridUpdate book: { id: "1", voltage: 232, timestamp: "..." }.
-
-Sends it via WebSocket (ws://localhost:4000/graphql).
-
-HQ (Apollo Client in main.tsx):
-WebSocket link receives the book.
-
-Matches it to the GRID_SUBSCRIPTION request from App.tsx.
-
-Forwards it to useSubscription.
-
-Branch (App.tsx):
-useSubscription gets subData.gridUpdate.
-
-useEffect updates liveData with the new book.
-
-UI renders the updated voltage for id: "1", flashing green.
-
-### Why It “Knows” to Get gridUpdate
-
-Schema Match: GRID_SUBSCRIPTION’s gridUpdate field matches the gridUpdate field in server.cjs’s Subscription type.
-
-WebSocket Link: main.tsx points Apollo to ws://localhost:4000/graphql, where server.cjs listens and responds with gridUpdate data.
-
-Apollo Magic: useSubscription tells Apollo, “Subscribe to this,” and Apollo handles the WebSocket handshake, passing subData back when data arrives.
-
-### Analogy Recap
-
-server.cjs: Publishing house prints gridUpdate books every 3 seconds.
-
-WebSocket: Courier truck drives books from the publishing house to HQ.
-
-useSubscription: Branch courier picks up books from HQ and hands them to the librarian (useEffect).
-
-UI: Readers see the latest book on the shelf with a flashy highlight.
+Analogy: The publishing house’s writer who pens new grid book editions or fetches existing ones from the back room.
 
 ### WebSocket Details: How It Works Under the Hood
 
@@ -480,7 +279,7 @@ Server-initiated pushes mean real-time updates without client overhead.
 
 Subscriptions Need It: GraphQL subscriptions require a persistent connection—HTTP can’t push data from server to client without polling. WebSocket is ideal for gridUpdate updates every 3 seconds.
 
-Your App: server.cjs simulates a real grid server pushing live data, and WebSocket delivers it to App.tsx via Apollo.
+In server.cjs simulates a real grid server pushing live data, and WebSocket delivers it to App.tsx via Apollo.
 
 ### Full Flow Recap
 
@@ -529,11 +328,10 @@ If dependencies change → Re-render → useEffect runs again.
 
 Library Analogy: The assistant checks the delivery log (dependencies). If new books (queryData, subData) arrive, they rearrange the shelf (setLiveData). If no changes, they chill.
 
-### useEffect in Your App.tsx
+### useEffect in App.tsx
 
-Here’s your code, with a line-by-line explanation:
 Code:
-tsx
+
 useEffect(() => {
 if (queryData) {
 const initialData: GridEntry[] = queryData.grid;
@@ -641,22 +439,22 @@ Performance: useEffect with useMemo (for rendering) keeps the app efficient—on
 Asynchronous operations (like fetching data over the network) don’t block the thread—they’re offloaded to the browser’s Web APIs (e.g., fetch for HTTP, WebSocket for subscriptions), which handle them in the background.
 
 useQuery:
-In your App.tsx:
-tsx
+In App.tsx:
+
 const { loading: queryLoading, error: queryError, data: queryData } = useQuery(GET_GRID_DATA, {
 fetchPolicy: "cache-and-network",
 });
 
 How It Works:
-When useQuery runs, Apollo Client sends a GraphQL query (GET_GRID_DATA) to ws://localhost:4000/graphql via the WebSocket link (in your current setup).
+When useQuery runs, Apollo Client sends a GraphQL query (GET_GRID_DATA) to ws://localhost:4000/graphql via the WebSocket link (in the current setup).
 
 This isn’t instant—it’s a network call. Apollo uses an async operation (WebSocket message) to request data from server.cjs.
 
 While waiting, useQuery returns { loading: true, data: undefined }. Once the response arrives, it updates to { loading: false, data: { grid: [...] } }.
 
 useSubscription:
-In your App.tsx:
-tsx
+In App.tsx:
+
 const { data: subData, error: subError } = useSubscription(GRID_SUBSCRIPTION);
 
 How It Works:
@@ -665,7 +463,7 @@ useSubscription sets up a WebSocket subscription to server.cjs. It sends a "star
 The WebSocket stays open, and server.cjs pushes data every 3 seconds. Each push is an async event—Apollo receives it in the background and updates subData.
 
 Why Async?
-Network operations (HTTP or WebSocket) take time (milliseconds to seconds). Blocking the thread would freeze your app. Async lets React render the UI (e.g., “Loading...”) while waiting.
+Network operations (HTTP or WebSocket) take time (milliseconds to seconds). Blocking the thread would freeze the app. Async lets React render the UI (e.g., “Loading...”) while waiting.
 
 Event Loop Connection
 The event loop is JavaScript’s mechanism for handling async tasks. Here’s how it fits:
@@ -703,7 +501,6 @@ The branch librarian (useQuery, useSubscription) puts in an order (query/subscri
 
 The courier (WebSocket) delivers books in the background (Web API). The event loop is the assistant who grabs the delivery from the mailbox (queue) and hands it over when the librarian’s free (stack empty).
 
-In Your App:
 Initial render: queryLoading = true, subData = undefined.
 
 Event loop: queryData loads → re-render with static data → subData updates every 3 seconds → re-renders with live data.
@@ -718,12 +515,12 @@ State or props change (re-render).
 
 React builds a Virtual DOM, compares it to the previous one (diffing), and updates the real DOM only where needed.
 
-In Your App:
+In the App:
 liveData changes (via setLiveData) → triggers re-render → renderedGrid updates → DOM reflects new voltages.
 
 useEffect Role
 Code:
-tsx
+
 useEffect(() => {
 if (queryData) setLiveData(queryData.grid);
 if (subData?.gridUpdate) {
@@ -746,7 +543,7 @@ Without useEffect, state updates in render would loop infinitely.
 
 useMemo Role
 Code:
-tsx
+
 const formatTimestamp = (timestamp: string) =>
 new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -810,200 +607,3 @@ useEffect reduces re-renders (e.g., no update if subData is unchanged).
 useMemo reduces computation (e.g., no re-mapping if liveData is stable).
 
 Together: Fewer state changes + less work per render = snappy app.
-
-What is Schema Design?
-In GraphQL, the schema is a formal description of your API’s data and operations, written in the GraphQL Schema Definition Language (SDL) or built programmatically (like in your JavaScript code). It’s like the floor plan of a library: it lists every book (data types), how you can borrow them (queries), update them (mutations), or get new editions live (subscriptions).
-Purpose: It’s a contract between the client (your App.tsx) and server (server.cjs), ensuring both agree on what’s possible.
-
-Your Schema: Defines Grid objects and operations (grid, updateVoltage, gridUpdate).
-
-Core Components of Schema Design
-
-1. Types
-   Types define the shape of your data—objects, scalars (like String, Int), lists, etc. They’re the building blocks.
-   Your Example (server.cjs):
-   javascript
-   const GridType = new GraphQLObjectType({
-   name: "Grid",
-   fields: {
-   id: { type: GraphQLString },
-   voltage: { type: GraphQLInt },
-   timestamp: { type: GraphQLString },
-   },
-   });
-
-Breakdown:
-GridType: An object type named Grid.
-
-fields: Properties (id, voltage, timestamp) with scalar types (GraphQLString, GraphQLInt).
-
-No ! (non-nullable marker)—fields can return null if undefined.
-
-SDL Equivalent:
-graphql
-type Grid {
-id: String
-voltage: Int
-timestamp: String
-}
-
-Analogy: Grid is a book template—every Grid object has an id (call number), voltage (page count), and timestamp (publish date).
-
-2. Root Types (Operations)
-   GraphQL has three root operation types: Query, Mutation, and Subscription. These are entry points for client requests.
-   a. Query
-   The read-only entry point—defines what data clients can fetch.
-   Your Query:
-   javascript
-   const Query = new GraphQLObjectType({
-   name: "Query",
-   fields: {
-   grid: {
-   type: new GraphQLList(GridType),
-   resolve: () => gridData,
-   },
-   },
-   });
-
-Breakdown:
-grid: Returns a list (GraphQLList) of Grid objects.
-
-resolve: Function returning gridData (your mock array).
-
-SDL:
-graphql
-type Query {
-grid: [Grid]
-}
-
-Client Request: query { grid { id voltage } } → Gets all Grid items’ id and voltage.
-
-Analogy: Query is the library’s checkout desk—you ask for books (grid), and it hands them over.
-
-b. Mutation
-The write entry point—defines how clients can modify data.
-Your Mutation:
-javascript
-const Mutation = new GraphQLObjectType({
-name: "Mutation",
-fields: {
-updateVoltage: {
-type: GridType,
-args: { id: { type: GraphQLString }, voltage: { type: GraphQLInt } },
-resolve: (\_, { id, voltage }) => {
-const entry = gridData.find((item) => item.id === id);
-if (entry) {
-entry.voltage = voltage;
-entry.timestamp = new Date().toISOString();
-return entry;
-}
-return null;
-},
-},
-},
-});
-
-Breakdown:
-updateVoltage: Returns a single Grid object.
-
-args: Inputs (id, voltage)—like function parameters.
-
-resolve: Updates gridData and returns the modified entry.
-
-Client Request: mutation { updateVoltage(id: "1", voltage: 225) { id voltage } }.
-
-Analogy: Mutation is the returns desk—you submit a form to update a book’s details.
-
-c. Subscription
-The real-time entry point—defines live data streams.
-Your Subscription:
-javascript
-const Subscription = new GraphQLObjectType({
-name: "Subscription",
-fields: {
-gridUpdate: {
-type: GridType,
-subscribe: async function* () {
-while (true) {
-const entry = gridData.find((item) => item.id === "1");
-const newVoltage = entry.voltage + Math.floor(Math.random() * 10) - 5;
-entry.voltage = Math.max(220, Math.min(239, newVoltage));
-entry.timestamp = new Date().toISOString();
-yield { gridUpdate: { ...entry } };
-await new Promise((resolve) => setTimeout(resolve, 3000));
-}
-},
-},
-},
-});
-
-Breakdown:
-gridUpdate: Returns a Grid object stream.
-
-subscribe: A generator yielding updates every 3 seconds.
-
-Client Request: subscription { gridUpdate { id voltage timestamp } }.
-
-Analogy: Subscription is a subscription service—new editions arrive automatically.
-
-3. Schema Definition
-   The schema ties it all together, specifying the root types.
-   Your Schema:
-
-const schema = new GraphQLSchema({
-query: Query,
-mutation: Mutation,
-subscription: Subscription,
-});
-
-Purpose: Tells GraphQL, “Here’s what clients can do.”
-
-Schema Design Principles
-
-1. Start with the Client
-   Design based on what your UI needs—not the database.
-   Your App: Needs grid data (id, voltage, timestamp), an update mechanism (updateVoltage), and live updates (gridUpdate).
-
-Tip: Sketch your React components first, then build types to match.
-
-2. Keep It Simple
-   Avoid overcomplicating—start with basic types and operations.
-   Your Design: One Grid type, three operations—lean and focused.
-
-Example Expansion: Add status: String to Grid later if needed.
-
-3. Use Strong Typing
-   Leverage GraphQL’s type system for safety.
-   Option: Make fields non-nullable (e.g., id: String!) if they’re always present.
-
-Your Choice: Nullable fields (id: String) allow null if data’s missing—flexible but less strict.
-
-4. Normalize Data
-   Use IDs to reference objects, enabling cache efficiency (Apollo loves this).
-   Your App: id uniquely identifies each Grid entry—perfect for normalization.
-
-5. Plan for Evolution
-   Add fields or types without breaking existing clients.
-   Example: Add current: Int to Grid—old queries still work.
-
-How It Works in Your App
-Schema in Action:
-Query (GET_GRID_DATA):
-Client asks for grid.
-
-Server resolves gridData → [{id: "1", ...}, ...].
-
-Mutation (UPDATE_VOLTAGE):
-Client sends updateVoltage(id: "1", voltage: 225).
-
-Server updates gridData, returns {id: "1", voltage: 225, ...}.
-
-Subscription (GRID_SUBSCRIPTION):
-Client subscribes to gridUpdate.
-
-Server yields {id: "1", voltage: 228, ...} every 3 seconds.
-
-Resolvers:
-Logic: Your resolve and subscribe functions fetch or compute data.
-
-Debug Example: We fixed gridUpdate to update voltage dynamically—schema stayed the same, but behavior improved.
