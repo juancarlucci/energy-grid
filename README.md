@@ -118,10 +118,13 @@ Role: The schema is the blueprint or catalog that defines all the books (data ty
 
 In the Ecosystem: It lives in both HQ (Apollo Client knows it implicitly via queries/subscriptions) and the publishing house (server.cjs), where it’s explicitly defined:
 
+```graphql
 const schema = new GraphQLSchema({
-query: Query, //_ Static book requests
-subscription: Subscription, //_ Live book deliveries
+   query: Query, // Static book requests
+   mutation: Mutation, // Book revision requests
+   subscription: Subscription, // Live book deliveries
 });
+```
 
 In server.cjs: The schema lists Grid (a book type with id, voltage, timestamp), a Query section for static data, and a Subscription section for live gridUpdate deliveries.
 Analogy: It’s the master index card file at HQ and the warehouse, telling librarians what books exist (e.g., “Grid books”) and their fields (e.g., “voltage chapter”).
@@ -132,14 +135,16 @@ Role: A query is a specific request form a branch librarian (useQuery) submits t
 
 In App.tsx, GET_GRID_DATA is a query:
 
-```const GET_GRID_DATA = gql query GetGridData {
-grid {
-id
-voltage
-timestamp
-}
-};
-
+```graphql
+const GET_GRID_DATA = gql`
+   query GetGridData {
+      grid {
+         id
+         voltage
+         timestamp
+      }
+   }
+`;
 ```
 
 It asks HQ for “grid” books from server.cjs.
@@ -154,17 +159,39 @@ In the Ecosystem: Sent to HQ, which forwards it to the supplier (GraphQLZero or 
 
 Server.cjs:
 
-```const Mutation = new GraphQLObjectType({
-name: "Mutation",
-fields: {
-updateVoltage: {
-type: GridType,
-args: { id: { type: GraphQLString }, voltage: { type: GraphQLInt } },
-resolve: (\_, { id, voltage }) => ({ id, voltage, timestamp: new Date().toISOString() }),
-},
-},
+```graphql
+const Mutation = new GraphQLObjectType({
+   name: "Mutation",
+   fields: {
+      updateVoltage: {
+         type: GridType,
+         args: {
+            id: { type: GraphQLString },
+            voltage: { type: GraphQLInt },
+         },
+         resolve: (_, { id, voltage }) => {
+            // Find the grid entry by ID
+            const entry = gridData.find((item) => item.id === id);
+            if (!entry) {
+               throw new Error(`Grid entry with id ${id} not found`);
+            }
+
+            // Update the voltage and timestamp
+            entry.voltage = voltage;
+            entry.timestamp = new Date().toISOString();
+
+            // Return the updated entry
+            return entry;
+         },
+      },
+   },
 });
-const schema = new GraphQLSchema({ query: Query, mutation: Mutation, subscription: Subscription });
+
+const schema = new GraphQLSchema({
+   query: Query,
+   mutation: Mutation,
+   subscription: Subscription,
+});
 ```
 
 Analogy: A librarian submits a “revision form” to HQ (“Update Grid:1’s voltage to 240”), HQ tells the publishing house, and the new edition gets shelved.
@@ -177,14 +204,16 @@ In the Ecosystem: Managed by the courier line (WebSocket link) from the publishi
 
 In App.tsx, GRID_SUBSCRIPTION listens for updates:
 
-```const GRID_SUBSCRIPTION = gql subscription OnGridUpdate {
-gridUpdate {
-id
-voltage
-timestamp
-}
-};
-
+```graphql
+const GRID_SUBSCRIPTION = gql`
+   subscription OnGridUpdate {
+      gridUpdate {
+         id
+         voltage
+         timestamp
+      }
+   }
+`;
 ```
 
 In server.cjs, it’s defined in the Subscription type, delivering id: "1".
@@ -199,13 +228,14 @@ In the Ecosystem: Part of the schema, used by HQ and the publishing house to ens
 
 In server.cjs:
 
-```const GridType = new GraphQLObjectType({
-name: "Grid",
-fields: {
-id: { type: GraphQLString },
-voltage: { type: GraphQLInt },
-timestamp: { type: GraphQLString },
-},
+```graphql
+const GridType = new GraphQLObjectType({
+   name: "Grid",
+   fields: {
+      id: { type: GraphQLString },
+      voltage: { type: GraphQLInt },
+      timestamp: { type: GraphQLString },
+   },
 });
 ```
 
@@ -219,31 +249,43 @@ In the Ecosystem: Lives in the publishing house (server.cjs) or remote warehouse
 
 In server.cjs, the subscribe function is a resolver:
 
-```const Subscription = new GraphQLObjectType({
-name: "Subscription",
-fields: {
-gridUpdate: {
-type: GridType,
-subscribe: async function* () {
-//* subscribe: async function* () is the resolver (the writer).
-//* It’s a generator (note the _) that “yields” a new book every 3 seconds.
-while (true) {
-const entry = gridData.find((item) => item.id === "1"); //_ Use current gridData
-const newVoltage = entry.voltage + Math.floor(Math.random() _ 10) - 5; // Simulate fluctuation
-entry.voltage = Math.max(220, Math.min(239, newVoltage)); // Keep within 220-239
-entry.timestamp = new Date().toISOString();
-const update = {
-//_ courier bag labeled gridUpdate.
-gridUpdate: {
-...entry,
-},
-};
-yield update; //\* Single yield with defined object
-await new Promise((resolve) => setTimeout(resolve, 3000)); // Every 3 seconds
-}
-},
-},
-},
+```javascript
+const Subscription = new GraphQLObjectType({
+  name: "Subscription",
+  fields: {
+    gridUpdate: {
+      type: GridType,
+      subscribe: async function* () {
+        // This resolver generates live updates for the grid.
+        while (true) {
+          // Find the grid entry with id: "1".
+          const entry = gridData.find((item) => item.id === "1");
+
+          // Simulate voltage fluctuation within a range of ±5.
+          const newVoltage = entry.voltage + Math.floor(Math.random() * 10) - 5;
+
+          // Ensure voltage stays within the range of 220 to 239.
+          entry.voltage = Math.max(220, Math.min(239, newVoltage));
+
+          // Update the timestamp to the current time.
+          entry.timestamp = new Date().toISOString();
+
+          // Prepare the update payload.
+          const update = {
+            gridUpdate: {
+              ...entry,
+            },
+          };
+
+          // Yield the update to the subscriber.
+          yield update;
+
+          // Wait for 3 seconds before generating the next update.
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      },
+    },
+  },
 });
 ```
 
@@ -252,7 +294,11 @@ Analogy: The publishing house’s writer who pens new grid book editions or fetc
 ### WebSocket Details: How It Works Under the Hood
 
 Connection Setup:
-When useSubscription runs, Apollo opens a WebSocket connection to `ws://localhost:4000/graphql.`
+When `useSubscription` runs, Apollo opens a WebSocket connection to:
+
+```plaintext
+ws://localhost:4000/graphql
+```
 
 Protocol: Starts with an HTTP handshake (GET /graphql with Upgrade: websocket), then switches to WebSocket (ws://).
 
@@ -268,12 +314,30 @@ Client: "start" message with the subscription query.
 Server: "data" messages with each gridUpdate payload.
 
 Example (simplified):
-json
-// Client to Server
 
-```{"type": "start", "id": "1", "payload": {"query": "subscription { gridUpdate { id voltage timestamp } }"}}
-// Server to Client
-{"type": "data", "id": "1", "payload": {"data": {"gridUpdate": {"id": "1", "voltage": 232, "timestamp": "..."}}}}
+```json
+{
+  "clientToServer": {
+    "type": "start",
+    "id": "1",
+    "payload": {
+      "query": "subscription { gridUpdate { id voltage timestamp } }"
+    }
+  },
+  "serverToClient": {
+    "type": "data",
+    "id": "1",
+    "payload": {
+      "data": {
+        "gridUpdate": {
+          "id": "1",
+          "voltage": 232,
+          "timestamp": "..."
+        }
+      }
+    }
+  }
+}
 ```
 
 Reconnection:
@@ -309,10 +373,8 @@ Library Analogy: Think of useEffect as the branch librarian’s assistant who st
 
 Syntax:
 
-```
-useEffect(() => {
-// Side effect code here
-}, [dependencies]);
+```javascript
+useEffect(() => {}, [dependencies]);
 ```
 
 Callback Function (() => { ... }):
@@ -331,10 +393,46 @@ Cleanup (Optional Return):
 If the callback returns a function, it runs before the next effect or when the component unmounts—like cleaning up a subscription.
 
 Example:
-```return () => clearInterval(interval);````.
 
-Technical Flow:
-Render → DOM updates → useEffect runs.
+```javascript
+return () => clearInterval(interval);
+```
+
+### Technical Flow:
+
+1. **Purpose**: This cleanup function ensures that the interval set by `setInterval` is cleared when the component unmounts or before the next effect runs. Without this, the interval would continue running in the background, potentially causing memory leaks or unexpected behavior.
+
+2. **When It Runs**:
+
+   - When the component unmounts: React automatically calls the cleanup function to stop any ongoing side effects.
+   - Before the next effect: If the dependencies of `useEffect` change, React runs the cleanup function before executing the new effect.
+
+3. **How It Works**:
+
+   - `setInterval` creates a recurring timer that executes a callback at specified intervals.
+   - `clearInterval(interval)` stops the timer, preventing further executions of the callback.
+
+4. **Example in Context**:
+
+   ```javascript
+   useEffect(() => {
+     const interval = setInterval(() => {
+       console.log("Interval running...");
+     }, 1000);
+
+     // Cleanup function to clear the interval
+     return () => clearInterval(interval);
+   }, []); // Empty dependency array ensures the effect runs only once
+   ```
+
+5. **Why It’s Important**:
+
+   - Prevents resource leaks: Without clearing the interval, the timer would persist even after the component is removed from the DOM.
+   - Ensures predictable behavior: Avoids multiple intervals running simultaneously if the effect is re-executed.
+
+6. **Library Analogy**:
+   Think of `setInterval` as a recurring delivery schedule for books. The cleanup function (`clearInterval`) cancels the schedule when the library closes (component unmounts) or a new schedule is set (effect re-runs).
+   Render → DOM updates → useEffect runs.
 
 If dependencies change → Re-render → useEffect runs again.
 
@@ -342,24 +440,23 @@ Library Analogy: The assistant checks the delivery log (dependencies). If new bo
 
 ### useEffect in App.tsx
 
-Code:
-
-```useEffect(() => {
-if (queryData) {
-const initialData: GridEntry[] = queryData.grid;
-setLiveData(initialData);
-}
-if (subData?.gridUpdate) {
-setLiveData((prev) => {
-const newEntry = subData.gridUpdate;
-const exists = prev.some((entry) => entry.id === newEntry.id);
-setUpdatedId(newEntry.id); //_ Mark this ID for a visual flash
-setTimeout(() => setUpdatedId(null), 500); //_ Clear highlight after 0.5s
-return exists
-? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry))
-: [...prev, newEntry];
-});
-}
+```tsx
+useEffect(() => {
+  if (queryData) {
+    const initialData: GridEntry[] = queryData.grid;
+    setLiveData(initialData);
+  }
+  if (subData?.gridUpdate) {
+    setLiveData((prev) => {
+      const newEntry = subData.gridUpdate;
+      const exists = prev.some((entry) => entry.id === newEntry.id);
+      setUpdatedId(newEntry.id); // Highlight the updated ID
+      setTimeout(() => setUpdatedId(null), 500); // Remove highlight after 0.5s
+      return exists
+        ? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry))
+        : [...prev, newEntry];
+    });
+  }
 }, [queryData, subData]);
 ```
 
@@ -455,8 +552,13 @@ Asynchronous operations (like fetching data over the network) don’t block the 
 useQuery:
 In App.tsx:
 
-```const { loading: queryLoading, error: queryError, data: queryData } = useQuery(GET_GRID_DATA, {
-fetchPolicy: "cache-and-network",
+```tsx
+const {
+  loading: queryLoading,
+  error: queryError,
+  data: queryData,
+} = useQuery(GET_GRID_DATA, {
+  fetchPolicy: "cache-and-network",
 });
 ```
 
@@ -536,18 +638,24 @@ liveData changes (via setLiveData) → triggers re-render → renderedGrid updat
 useEffect Role
 Code:
 
+```tsx
 useEffect(() => {
-if (queryData) setLiveData(queryData.grid);
-if (subData?.gridUpdate) {
-setLiveData((prev) => {
-const newEntry = subData.gridUpdate;
-const exists = prev.some((entry) => entry.id === newEntry.id);
-setUpdatedId(newEntry.id);
-setTimeout(() => setUpdatedId(null), 500);
-return exists ? prev.map(...) : [...prev, newEntry];
-});
-}
+  if (queryData) {
+    setLiveData(queryData.grid);
+  }
+  if (subData?.gridUpdate) {
+    setLiveData((prev) => {
+      const newEntry = subData.gridUpdate;
+      const exists = prev.some((entry) => entry.id === newEntry.id);
+      setUpdatedId(newEntry.id); // Highlight the updated ID
+      setTimeout(() => setUpdatedId(null), 500); // Remove highlight after 0.5s
+      return exists
+        ? prev.map((entry) => (entry.id === newEntry.id ? newEntry : entry))
+        : [...prev, newEntry];
+    });
+  }
 }, [queryData, subData]);
+```
 
 Efficiency:
 Runs only when queryData or subData changes, not every render.
@@ -559,18 +667,25 @@ Without useEffect, state updates in render would loop infinitely.
 useMemo Role
 Code:
 
-```const formatTimestamp = (timestamp: string) =>
-new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+```tsx
+const formatTimestamp = (timestamp: string) =>
+  new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 const renderedGrid = useMemo(() => {
-return liveData.map((entry) => (
-
-<li
-key={entry.id}
-style={{ backgroundColor: entry.id === updatedId ? "#e0ffe0" : "transparent" }} >
-Voltage: {entry.voltage} V (ID: {entry.id}, Time: {formatTimestamp(entry.timestamp)})
-</li>
-));
+  return liveData.map((entry) => (
+    <li
+      key={entry.id}
+      style={{
+        backgroundColor: entry.id === updatedId ? "#e0ffe0" : "transparent",
+      }}
+    >
+      Voltage: {entry.voltage} V (ID: {entry.id}, Time:{" "}
+      {formatTimestamp(entry.timestamp)})
+    </li>
+  ));
 }, [liveData, updatedId]);
 ```
 
@@ -601,7 +716,8 @@ setTimeout clears updatedId → re-render → useMemo updates styles.
 
 Efficiency: Only changed <li>s (e.g., id: "1") update in the DOM, thanks to key={entry.id}—React skips untouched ones (e.g., id: "2", id: "3").
 
-How They Work Together
+#### How They Work Together
+
 useEffect:
 Controls when liveData updates—only on new queryData or subData.
 
