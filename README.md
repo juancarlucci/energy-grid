@@ -506,13 +506,48 @@ When a courier drops off a new book (subData.gridUpdate), they update the shelf,
 
 ### Why Use useEffect Here?
 
-Timing:
+### Timing
+
+React’s rendering and state updates are asynchronous, meaning they don’t block the main thread. Here’s how timing plays a role in this app:
+
+1. **Initial Render**:
+
+   - React renders the component tree.
+   - `useQuery` and `useSubscription` initiate their respective GraphQL operations asynchronously.
+   - The UI shows a loading state (`queryLoading = true`) while waiting for data.
+
+2. **Query Data Arrival**:
+
+   - When `queryData` is fetched, React triggers a re-render.
+   - `useEffect` runs, updating `liveData` with the static grid data.
+   - The UI updates to display the initial grid metrics.
+
+3. **Subscription Updates**:
+
+   - Every 3 seconds, the WebSocket server pushes a new `gridUpdate` for `id: "1"`.
+   - Apollo Client processes the update and triggers a re-render.
+   - `useEffect` updates `liveData` with the new voltage and timestamp for `id: "1"`.
+   - The UI highlights the updated entry with a green flash for 0.5 seconds.
+
+4. **Cleanup and Efficiency**:
+   - React ensures that effects are cleaned up when dependencies change or components unmount.
+   - `useMemo` ensures that only the necessary parts of the UI are recomputed, minimizing rendering overhead.
+
+#### Why Timing Matters
+
+Efficient timing ensures the app remains responsive and avoids unnecessary computations. By leveraging React’s lifecycle and hooks like `useEffect` and `useMemo`, the app delivers real-time updates without compromising performance.
 useQuery and useSubscription fetch data asynchronously—queryData and subData aren’t ready during the initial render. useEffect waits until after render, when the data’s available.
 
-Reactivity:
+---
+
+### Reactivity:
+
 Without useEffect, you’d need to manually update liveData in render, which could cause infinite loops (render → setState → render). useEffect runs only when queryData or subData changes, keeping it controlled.
 
-Side Effects:
+---
+
+### Side Effects:
+
 Updating liveData and triggering the flash (setUpdatedId) are side effects—they affect state and UI outside the main render logic. useEffect is built for this.
 
 Alternative Without useEffect:
