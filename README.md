@@ -132,13 +132,15 @@ Role: A query is a specific request form a branch librarian (useQuery) submits t
 
 In App.tsx, GET_GRID_DATA is a query:
 
-const GET_GRID_DATA = gql`  query GetGridData {
-    grid {
-      id
-      voltage
-      timestamp
-    }
-  }`;
+```const GET_GRID_DATA = gql query GetGridData {
+grid {
+id
+voltage
+timestamp
+}
+};
+
+```
 
 It asks HQ for “grid” books from server.cjs.
 
@@ -152,7 +154,7 @@ In the Ecosystem: Sent to HQ, which forwards it to the supplier (GraphQLZero or 
 
 Server.cjs:
 
-const Mutation = new GraphQLObjectType({
+```const Mutation = new GraphQLObjectType({
 name: "Mutation",
 fields: {
 updateVoltage: {
@@ -163,6 +165,7 @@ resolve: (\_, { id, voltage }) => ({ id, voltage, timestamp: new Date().toISOStr
 },
 });
 const schema = new GraphQLSchema({ query: Query, mutation: Mutation, subscription: Subscription });
+```
 
 Analogy: A librarian submits a “revision form” to HQ (“Update Grid:1’s voltage to 240”), HQ tells the publishing house, and the new edition gets shelved.
 
@@ -174,13 +177,15 @@ In the Ecosystem: Managed by the courier line (WebSocket link) from the publishi
 
 In App.tsx, GRID_SUBSCRIPTION listens for updates:
 
-const GRID_SUBSCRIPTION = gql`  subscription OnGridUpdate {
-    gridUpdate {
-      id
-      voltage
-      timestamp
-    }
-  }`;
+```const GRID_SUBSCRIPTION = gql subscription OnGridUpdate {
+gridUpdate {
+id
+voltage
+timestamp
+}
+};
+
+```
 
 In server.cjs, it’s defined in the Subscription type, delivering id: "1".
 
@@ -194,7 +199,7 @@ In the Ecosystem: Part of the schema, used by HQ and the publishing house to ens
 
 In server.cjs:
 
-const GridType = new GraphQLObjectType({
+```const GridType = new GraphQLObjectType({
 name: "Grid",
 fields: {
 id: { type: GraphQLString },
@@ -202,6 +207,7 @@ voltage: { type: GraphQLInt },
 timestamp: { type: GraphQLString },
 },
 });
+```
 
 Analogy: A template saying, “All grid books must have an ID page, a voltage chapter, and a timestamp appendix.”
 
@@ -213,7 +219,7 @@ In the Ecosystem: Lives in the publishing house (server.cjs) or remote warehouse
 
 In server.cjs, the subscribe function is a resolver:
 
-const Subscription = new GraphQLObjectType({
+```const Subscription = new GraphQLObjectType({
 name: "Subscription",
 fields: {
 gridUpdate: {
@@ -239,13 +245,14 @@ await new Promise((resolve) => setTimeout(resolve, 3000)); // Every 3 seconds
 },
 },
 });
+```
 
 Analogy: The publishing house’s writer who pens new grid book editions or fetches existing ones from the back room.
 
 ### WebSocket Details: How It Works Under the Hood
 
 Connection Setup:
-When useSubscription runs, Apollo opens a WebSocket connection to ws://localhost:4000/graphql.
+When useSubscription runs, Apollo opens a WebSocket connection to `ws://localhost:4000/graphql.`
 
 Protocol: Starts with an HTTP handshake (GET /graphql with Upgrade: websocket), then switches to WebSocket (ws://).
 
@@ -263,9 +270,11 @@ Server: "data" messages with each gridUpdate payload.
 Example (simplified):
 json
 // Client to Server
-{"type": "start", "id": "1", "payload": {"query": "subscription { gridUpdate { id voltage timestamp } }"}}
+
+```{"type": "start", "id": "1", "payload": {"query": "subscription { gridUpdate { id voltage timestamp } }"}}
 // Server to Client
 {"type": "data", "id": "1", "payload": {"data": {"gridUpdate": {"id": "1", "voltage": 232, "timestamp": "..."}}}}
+```
 
 Reconnection:
 reconnect: true in wsLink ensures if the server restarts, Apollo reopens the connection and resubscribes.
@@ -299,10 +308,11 @@ Library Analogy: Think of useEffect as the branch librarian’s assistant who st
 ### How Does useEffect Work?
 
 Syntax:
-tsx
-useEffect(() => {
+
+```useEffect(() => {
 // Side effect code here
 }, [dependencies]);
+```
 
 Callback Function (() => { ... }):
 This runs the side effect—like updating state or fetching data.
@@ -319,7 +329,7 @@ If populated (e.g., [queryData, subData]), it runs only when those values change
 Cleanup (Optional Return):
 If the callback returns a function, it runs before the next effect or when the component unmounts—like cleaning up a subscription.
 
-Example: return () => clearInterval(interval);.
+Example: ```return () => clearInterval(interval);````.
 
 Technical Flow:
 Render → DOM updates → useEffect runs.
@@ -332,7 +342,7 @@ Library Analogy: The assistant checks the delivery log (dependencies). If new bo
 
 Code:
 
-useEffect(() => {
+```useEffect(() => {
 if (queryData) {
 const initialData: GridEntry[] = queryData.grid;
 setLiveData(initialData);
@@ -349,6 +359,7 @@ return exists
 });
 }
 }, [queryData, subData]);
+```
 
 Breakdown:
 The Effect (() => { ... }):
@@ -421,7 +432,8 @@ Query Loads: queryData populates → useEffect sets liveData with IDs "1", "2", 
 
 Subscription Kicks In: subData updates every 3 seconds → useEffect updates id: "1" in liveData → UI flashes green.
 
-Technical Nuances
+#### Technical Nuances
+
 Why [queryData, subData] and Not Empty?
 Empty ([]) would run once on mount, missing live updates. [queryData, subData] ensures it reacts to new data.
 
@@ -441,9 +453,10 @@ Asynchronous operations (like fetching data over the network) don’t block the 
 useQuery:
 In App.tsx:
 
-const { loading: queryLoading, error: queryError, data: queryData } = useQuery(GET_GRID_DATA, {
+```const { loading: queryLoading, error: queryError, data: queryData } = useQuery(GET_GRID_DATA, {
 fetchPolicy: "cache-and-network",
 });
+```
 
 How It Works:
 When useQuery runs, Apollo Client sends a GraphQL query (GET_GRID_DATA) to ws://localhost:4000/graphql via the WebSocket link (in the current setup).
@@ -544,7 +557,7 @@ Without useEffect, state updates in render would loop infinitely.
 useMemo Role
 Code:
 
-const formatTimestamp = (timestamp: string) =>
+```const formatTimestamp = (timestamp: string) =>
 new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 const renderedGrid = useMemo(() => {
@@ -557,6 +570,7 @@ Voltage: {entry.voltage} V (ID: {entry.id}, Time: {formatTimestamp(entry.timesta
 </li>
 ));
 }, [liveData, updatedId]);
+```
 
 What It Does:
 useMemo(() => ..., [dependencies]): Memoizes (caches) the result of the callback. Only recalculates when liveData or updatedId changes.
