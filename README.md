@@ -309,7 +309,8 @@ Library Analogy: Think of useEffect as the branch librarian’s assistant who st
 
 Syntax:
 
-```useEffect(() => {
+```
+useEffect(() => {
 // Side effect code here
 }, [dependencies]);
 ```
@@ -329,7 +330,8 @@ If populated (e.g., [queryData, subData]), it runs only when those values change
 Cleanup (Optional Return):
 If the callback returns a function, it runs before the next effect or when the component unmounts—like cleaning up a subscription.
 
-Example: ```return () => clearInterval(interval);````.
+Example:
+```return () => clearInterval(interval);````.
 
 Technical Flow:
 Render → DOM updates → useEffect runs.
