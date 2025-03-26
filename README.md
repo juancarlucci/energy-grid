@@ -101,11 +101,10 @@ The app follows a simple flow:
 
 ## Project Structure
 
-```
-
 ## Why This Matters
 
 This project demonstrates:
+
 - **Real-Time Data:** GraphQL subscriptions for dynamic updates, key for monitoring apps.
 - **Efficient Caching:** Apollo Client’s `InMemoryCache` for scalable data management.
 - **User Experience:** Visual cues (green flash) enhance clarity, a nod to polished UX.
@@ -117,7 +116,6 @@ This project demonstrates:
 ### Sample Code
 
 #### Subscription Setup (`App.tsx`):
-```
 
 ```javascript
 const { data: subData } = useSubscription(GRID_SUBSCRIPTION);
