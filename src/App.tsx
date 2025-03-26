@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useSubscription, gql } from "@apollo/client";
 import { useState, useEffect, useMemo } from "react";
+import { GridNode } from "./components/GridNode";
+import { ControlPanel } from "./components/ControlPanel";
 
-//* Define a GraphQL query for static grid data from local server
+// GraphQL Definitions
 const GET_GRID_DATA = gql`
   query GetGridData {
     grid {
@@ -12,9 +14,6 @@ const GET_GRID_DATA = gql`
   }
 `;
 
-//* Define a GraphQL subscription for real-time grid updates
-//* Library Analogy: The branch fills out a standing order form:
-//* “Send me every new edition of the ‘Grid Update’ book with ID, voltage, and timestamp chapters.”
 const GRID_SUBSCRIPTION = gql`
   subscription OnGridUpdate {
     gridUpdate {
@@ -35,64 +34,46 @@ const UPDATE_VOLTAGE = gql`
   }
 `;
 
-//* Mock grid data type
-type GridEntry = {
+export type GridEntry = {
   id: string;
   voltage: number;
   timestamp: string;
 };
 
 function App() {
-  //* useQuery as a friendly librarian working in a local branch library (your App component).
-  //* This librarian doesn’t own the books or manage the storage—that’s HQ’s job.
-  //* Instead, the librarian knows how to request specific books (queries) from headquarters and
-  //* deliver them to readers (your UI).
-  //* Why in App.tsx? You place useQuery in App.tsx (or any component) because that’s where you need
-  //* the data—like a branch library serving its local readers.
-  //* Each component can have its own librarian (useQuery) asking for different books (queries or subscriptions) tailored to its needs.
-  //* When useQuery runs, it sends a request to the ApolloClient (HQ)
-  //* with the GET_GRID_DATA query. The client fetches the data from the server (or cache) and
-  //* hands it back to useQuery, which then gives you loading, error, and data states to work with.
-  //* It’s a local worker relying on the central system.
   const {
     loading: queryLoading,
     error: queryError,
     data: queryData,
     refetch,
-  } = useQuery(GET_GRID_DATA, {
-    fetchPolicy: "cache-and-network", //* Use cache first, then update with network
-  });
+  } = useQuery(GET_GRID_DATA, { fetchPolicy: "cache-and-network" });
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
-  const { data: subData, error: subError } = useSubscription(GRID_SUBSCRIPTION);
-  const [updatedId, setUpdatedId] = useState<string | null>(null); //* Track last updated ID for highlight
-  const [lastMutation, setLastMutation] = useState<GridEntry | null>(null); //* Track latest mutation
-
-  //* Combine query, subscription, and mutation data
-  const liveData = useMemo(() => {
-    if (!queryData?.grid) return [];
-    const grid = [...queryData.grid];
-
-    //* Apply last mutation first (takes precedence)
-    if (lastMutation) {
-      const index = grid.findIndex((entry) => entry.id === lastMutation.id);
-      if (index !== -1) grid[index] = lastMutation;
-      else grid.push(lastMutation);
+  const [paused, setPaused] = useState(false);
+  const { data: subData, error: subError } = useSubscription(
+    GRID_SUBSCRIPTION,
+    {
+      skip: paused,
+      onSubscriptionData: ({ client, subscriptionData }) => {
+        const newEntry = subscriptionData.data.gridUpdate;
+        const cachedData = client.readQuery<{ grid: GridEntry[] }>({
+          query: GET_GRID_DATA,
+        });
+        if (cachedData) {
+          client.writeQuery({
+            query: GET_GRID_DATA,
+            data: {
+              grid: cachedData.grid.map((entry) =>
+                entry.id === newEntry.id ? newEntry : entry
+              ),
+            },
+          });
+        }
+      },
     }
+  );
+  const [updatedId, setUpdatedId] = useState<string | null>(null);
 
-    //* Then apply subscription data (if not overridden by mutation)
-    if (
-      subData?.gridUpdate &&
-      (!lastMutation || subData.gridUpdate.timestamp > lastMutation.timestamp)
-    ) {
-      const subEntry = subData.gridUpdate;
-      const index = grid.findIndex((entry) => entry.id === subEntry.id);
-      if (index !== -1) grid[index] = subEntry;
-      else grid.push(subEntry);
-    }
-    return grid;
-  }, [queryData, subData, lastMutation]);
-
-  //* Highlight subscription updates
+  // Highlight updates
   useEffect(() => {
     if (subData?.gridUpdate) {
       setUpdatedId(subData.gridUpdate.id);
@@ -100,27 +81,14 @@ function App() {
     }
   }, [subData]);
 
-  //* Format timestamp for readability
-  const formatTimestamp = (timestamp: string) =>
-    new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-
-  const handleUpdateVoltage = (id: string) => {
-    const newVoltage = Math.floor(Math.random() * 20) + 220; // Random 220-239
-    const optimisticEntry = {
-      id,
-      voltage: newVoltage,
-      timestamp: new Date().toISOString(),
-    };
+  const handleUpdateVoltage = (id: string, voltage: number) => {
+    const clampedVoltage = Math.max(220, Math.min(239, voltage)); // Enforce 220-239 range
     updateVoltage({
-      variables: { id, voltage: newVoltage },
+      variables: { id, voltage: clampedVoltage },
       optimisticResponse: {
         updateVoltage: {
           id,
-          voltage: newVoltage,
+          voltage: clampedVoltage,
           timestamp: new Date().toISOString(),
           __typename: "Grid",
         },
@@ -145,42 +113,39 @@ function App() {
       },
     })
       .then(() => {
-        setLastMutation(optimisticEntry); // Store mutation locally
         setUpdatedId(id);
         setTimeout(() => setUpdatedId(null), 500);
-        refetch(); //* Force query refresh
       })
       .catch((error) => console.error("Mutation error:", error));
   };
 
-  //* Optimize rendering with useMemo
   const renderedGrid = useMemo(() => {
-    //* Prevents recomputation unless liveData changes; keys ensure stable DOM updates
-    return liveData.map((entry) => (
-      <li
+    if (!queryData?.grid) return null;
+    return queryData.grid.map((entry: GridEntry) => (
+      <GridNode
         key={entry.id}
-        style={{
-          backgroundColor: entry.id === updatedId ? "#328232" : "transparent",
-        }} //* Flash green on update
-      >
-        Voltage: {entry.voltage} V (ID: {entry.id}, Time:{" "}
-        {formatTimestamp(entry.timestamp)})
-        <button onClick={() => handleUpdateVoltage(entry.id)}>
-          Update Voltage
-        </button>
-      </li>
+        entry={entry}
+        updatedId={updatedId}
+        onUpdateVoltage={handleUpdateVoltage}
+      />
     ));
-  }, [liveData, updatedId]);
+  }, [queryData, updatedId]);
 
   if (queryLoading && !queryData) return <p>Loading grid data...</p>;
   if (queryError) return <p>Error: {queryError.message}</p>;
   if (subError) return <p>Subscription Error: {subError.message}</p>;
 
   return (
-    <div>
+    <div style={{ padding: "20px" }}>
       <h1>Energy Grid Dashboard</h1>
       <p>Real-time updates via GraphQL subscription (ID 1 updates every 3s)</p>
-      <ul>{renderedGrid}</ul>
+      <ControlPanel
+        paused={paused}
+        onTogglePause={() => setPaused(!paused)}
+        onRefresh={refetch}
+        loading={queryLoading}
+      />
+      <ul style={{ listStyle: "none", padding: 0 }}>{renderedGrid}</ul>
     </div>
   );
 }

@@ -154,22 +154,23 @@ const renderedGrid = useMemo(
 );
 ```
 
-```
 ### Dependencies
+
 #### Key libraries (see package.json for full list):
-*@apollo/client: GraphQL client and caching
 
-*graphql: GraphQL parsing
+\*@apollo/client: GraphQL client and caching
 
-*subscriptions-transport-ws: WebSocket support
+\*graphql: GraphQL parsing
 
-*ws: WebSocket server
+\*subscriptions-transport-ws: WebSocket support
+
+\*ws: WebSocket server
 
 ### Status
+
 As of March 26, 2025, this is a functional demo with mock data. Future enhancements could include real grid data integration or multi-node subscriptions.
 
 ### License
+
 MIT License - see LICENSE for details.
 TODO (Add a LICENSE file to the repo with MIT terms if applicable.)
-
-```
