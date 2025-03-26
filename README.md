@@ -51,7 +51,7 @@ Role: Apollo Client is the central hub—like the library headquarters (HQ)—se
 
 Why in main.tsx? It’s the app’s entry point—the town’s only HQ. Initialized here with ApolloProvider, it ensures every component (branch library) has a library card to access data. One HQ serves all, keeping the cache shared and efficient.
 
-Behind the Scenes: Configured with a WebSocket link (ws://localhost:4000/graphql) for queries and subscriptions, it fetches and stores grid data in RAM for quick access.
+> Behind the Scenes: Configured with a WebSocket link (ws://localhost:4000/graphql) for queries and subscriptions, it fetches and stores grid data in RAM for quick access.
 
 ### useQuery: The Branch Librarian
 
@@ -59,7 +59,7 @@ Role: In App.tsx, useQuery acts as a friendly librarian at a local branch. It do
 
 In App.tsx: This is where data is displayed—like a branch serving its readers. It fetches static grid data, while subscriptions handle live updates.
 
-Flow: useQuery asks HQ for initial data, which Apollo fetches from erver.cjs, caches, and returns as loading, error, or data states.
+> Behind the Scenes: useQuery asks HQ for initial data, which Apollo fetches from erver.cjs, caches, and returns as loading, error, or data states.
 
 ### useSubscription: The Live Courier
 
@@ -75,7 +75,7 @@ Role: The InMemoryCache in Apollo Client holds grid data (e.g., Grid:1, Grid:2) 
 
 Normalization: Data is split into objects by ID (e.g., Post:1, Post:2) with query keys (e.g., Query.GetGridData) acting like catalog cards pointing to them. This avoids duplicates and speeds up access.
 
-In Action: Initial query data is cached, and subscription updates for id: "1" refresh the cache, keeping the UI in sync without redundant server calls.
+> Behind the Scenes: Initial query data is cached, and subscription updates for id: "1" refresh the cache, keeping the UI in sync without redundant server calls.
 
 ### WebSocket Server: The Local Warehouse and Press (provides both static and live data)
 
@@ -155,7 +155,7 @@ Analogy: A librarian fills out a form (“I need all grid books with IDs and vol
 
 Role: A mutation is a request to change or add books in the library—think of it as a form to update a book’s content (e.g., change voltage) or add a new one (e.g., new grid node).
 
-In the Ecosystem: Sent to HQ, which forwards it to the supplier (GraphQLZero or server.cjs if they supported mutations) and updates the storage room (cache).
+> Behind the Scenes: Sent to HQ, which forwards it to the supplier (GraphQLZero or server.cjs) and updates the storage room (cache).
 
 Server.cjs:
 
@@ -200,7 +200,7 @@ Analogy: A librarian submits a “revision form” to HQ (“Update Grid:1’s v
 
 Role: A subscription is a standing order for new book editions delivered in real-time—like signing up for a newsletter from the publishing house.
 
-In the Ecosystem: Managed by the courier line (WebSocket link) from the publishing house (server.cjs) to HQ, then to branch couriers (useSubscription).
+> Behind the Scenes: Managed by the courier line (WebSocket link) from the publishing house (server.cjs) to HQ, then to branch couriers (useSubscription).
 
 In App.tsx, GRID_SUBSCRIPTION listens for updates:
 
@@ -362,12 +362,14 @@ HQ (main.tsx): WebSocket link receives it, Apollo routes it to useSubscription.
 
 Branch (App.tsx): useSubscription gets subData.gridUpdate, useEffect updates liveData, UI shows it.
 
+---
+
 ### What is useEffect?
 
 useEffect is a React hook that lets you perform side effects in functional components. Side effects are actions outside the main render flow—like fetching data, updating state based on external changes, or setting up subscriptions. It runs after the component renders, ensuring the UI is ready before handling these extras.
 Key Idea: It’s React’s way of saying, “Render the UI first, then deal with the messy stuff.”
 
-Library Analogy: Think of useEffect as the branch librarian’s assistant who steps in after the library opens (rendering) to rearrange books on the shelf (state updates) based on new deliveries (data changes).
+> Library Analogy: Think of useEffect as the branch librarian’s assistant who steps in after the library opens (rendering) to rearrange books on the shelf (state updates) based on new deliveries (data changes).
 
 ### How Does useEffect Work?
 
@@ -436,7 +438,7 @@ return () => clearInterval(interval);
 
 If dependencies change → Re-render → useEffect runs again.
 
-Library Analogy: The assistant checks the delivery log (dependencies). If new books (queryData, subData) arrive, they rearrange the shelf (setLiveData). If no changes, they chill.
+> Library Analogy: The assistant checks the delivery log (dependencies). If new books (queryData, subData) arrive, they rearrange the shelf (setLiveData). If no changes, they chill.
 
 ### useEffect in App.tsx
 
@@ -497,8 +499,8 @@ Every 3 seconds: subData updates → updates id: "1" in liveData.
 No Cleanup:
 No return function here since there’s no ongoing process (like an interval) to stop. useSubscription handles its own cleanup via Apollo.
 
-Library Analogy:
-The assistant (useEffect) watches the delivery log (queryData, subData).
+> Library Analogy:
+> The assistant (useEffect) watches the delivery log (queryData, subData).
 
 When a big shipment arrives (queryData), they stock the shelf (setLiveData) with all books.
 
@@ -557,7 +559,7 @@ if (queryData) setLiveData(queryData.grid); // BAD: Causes infinite render loop
 
 This breaks React—setLiveData triggers a re-render, which calls it again, ad infinitum. useEffect prevents this by running after render, only on dependency changes.
 
-Library Analogy: The assistant doesn’t rearrange the shelf while the library’s still building (rendering). They wait until it’s open (post-render) and only act when new books arrive (dependencies change).
+> Library Analogy: The assistant doesn’t rearrange the shelf while the library’s still building (rendering). They wait until it’s open (post-render) and only act when new books arrive (dependencies change).
 
 How It Fits the Flow
 Initial Render: UI shows “Loading...”, useEffect waits.
@@ -648,10 +650,10 @@ Every 3 seconds, server.cjs pushes data → WebSocket API triggers a callback �
 
 Event loop runs it → Apollo updates subData → re-render.
 
-Library Analogy:
-The branch librarian (useQuery, useSubscription) puts in an order (query/subscription) and keeps working (rendering “Loading...”).
-
-The courier (WebSocket) delivers books in the background (Web API). The event loop is the assistant who grabs the delivery from the mailbox (queue) and hands it over when the librarian’s free (stack empty).
+> Library Analogy:
+> The branch librarian (useQuery, useSubscription) puts in an order (query/subscription) and keeps working (rendering “Loading...”).
+>
+> The courier (WebSocket) delivers books in the background (Web API). The event loop is the assistant who grabs the delivery from the mailbox (queue) and hands it over when the librarian’s free (stack empty).
 
 Initial render: queryLoading = true, subData = undefined.
 
@@ -763,8 +765,8 @@ Controls what renders—caches renderedGrid to avoid redundant computation.
 
 Ensures DOM updates are minimal (e.g., only id: "1"’s <li> changes).
 
-Library Analogy:
-Without Optimization: Every time a book arrives, the assistant (useEffect) rebuilds the entire shelf, and the display team (render) redraws every label—even unchanged ones.
+> Library Analogy:
+> Without Optimization: Every time a book arrives, the assistant (useEffect) rebuilds the entire shelf, and the display team (render) redraws every label—even unchanged ones.
 
 With Optimization: The assistant updates only the new book (useEffect), and the display team uses a pre-made list (useMemo), tweaking only the updated label (DOM diffing).
 
