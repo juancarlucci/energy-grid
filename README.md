@@ -170,10 +170,6 @@ As of March 26, 2025, this is a functional demo with mock data. Future enhanceme
 
 ### License
 MIT License - see LICENSE for details.
-(Add a LICENSE file to the repo with MIT terms if applicable.)
+TODO (Add a LICENSE file to the repo with MIT terms if applicable.)
 
-```
-
-```
-*(Add a LICENSE file to the repository with MIT terms if applicable.)*
 ```
