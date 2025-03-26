@@ -1,25 +1,28 @@
 # Energy Grid Dashboard
 
-````markdown
 A React-based web application simulating real-time energy grid monitoring using GraphQL queries and subscriptions. Built with Apollo Client, it fetches mock static data and delivers live voltage updates via a local WebSocket server. Think of it as a utility dashboard for tracking grid metrics—like voltage—across multiple nodes, blending historical data with live updates.
 
 ## Overview
 
 This project mimics a small-scale energy grid dashboard, pulling initial data (e.g., grid nodes "1", "2", "3") from a local GraphQL server and subscribing to live voltage updates for node "1" every 3 seconds. It showcases modern front-end techniques: GraphQL for data fetching, WebSocket for real-time updates, and Apollo Client for efficient caching. Ideal for developers exploring real-time dashboards or utility monitoring concepts.
 
-### Features
+## Features
 
-- **Static Data Fetching:** Pulls initial grid data (IDs "1", "2", "3") from a local GraphQL server via queries.
-- **Real-Time Updates:** Subscribes to the same server for live voltage updates on `id: "1"`, refreshing every 3 seconds.
-- **Visual Feedback:** Highlights updated entries with a brief green flash for clarity.
-- **Optimized Rendering:** Uses `useMemo` to ensure efficient UI updates without unnecessary re-renders.
+- **Static Data Fetching**: Pulls initial grid data (IDs "1", "2", "3") from a local GraphQL server via queries.
+- **Real-Time Updates**: Subscribes to the same server for live voltage updates on `id: "1"`, refreshing every 3 seconds.
+- **Visual Feedback**: Highlights updated entries with a brief green flash for clarity.
+- **Optimized Rendering**: Uses `useMemo` to ensure efficient UI updates without unnecessary re-renders.
+
+_See a demo screenshot below:_  
+![Dashboard Screenshot](https://via.placeholder.com/600x300.png?text=Energy+Grid+Dashboard+Screenshot)  
+_(Replace with an actual screenshot of the dashboard showing the green flash.)_
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v20.9.0 recommended)
-- npm (v10.1.0 or compatible)
+- **Node.js**: v20.9.0 (recommended for WebSocket compatibility; newer versions may work)
+- **npm**: v10.1.0 or compatible
 
 ### Installation
 
@@ -97,14 +100,6 @@ The app follows a simple flow:
 2. `useSubscription` receives updates → `useEffect` syncs `liveData` → UI flashes green.
 
 ## Project Structure
-````
-
-energy-grid/
-├── src/
-│ ├── main.tsx # Apollo Client setup with ApolloProvider
-│ ├── App.tsx # Core UI with useQuery, useSubscription, and useMemo
-├── server.cjs # WebSocket server for GraphQL queries and subscriptions
-├── package.json # Scripts (dev, server) and dependencies
 
 ```
 
@@ -177,4 +172,8 @@ As of March 26, 2025, this is a functional demo with mock data. Future enhanceme
 MIT License - see LICENSE for details.
 (Add a LICENSE file to the repo with MIT terms if applicable.)
 
+```
+
+```
+*(Add a LICENSE file to the repository with MIT terms if applicable.)*
 ```
