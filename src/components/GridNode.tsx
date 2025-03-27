@@ -1,4 +1,4 @@
-import { GridEntry } from "../App"; // Assuming you export this type
+import { GridEntry } from "../App";
 import { useState } from "react";
 
 interface GridNodeProps {
@@ -18,10 +18,14 @@ export function GridNode({ entry, updatedId, onUpdateVoltage }: GridNodeProps) {
     });
 
   const handleUpdate = () => {
-    const newVoltage =
-      parseInt(voltageInput) || Math.floor(Math.random() * 20) + 220;
-    onUpdateVoltage(entry.id, newVoltage);
-    setVoltageInput(""); // Reset input
+    const parsedVoltage = parseInt(voltageInput);
+    // Only update if input is a valid number and within range
+    if (!isNaN(parsedVoltage)) {
+      const clampedVoltage = Math.max(220, Math.min(239, parsedVoltage));
+      onUpdateVoltage(entry.id, clampedVoltage);
+      setVoltageInput(""); // Reset input after successful update
+    }
+    // If invalid or empty, do nothing (no random fallback)
   };
 
   return (
