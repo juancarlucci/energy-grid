@@ -46,9 +46,13 @@ function App() {
     error: queryError,
     data: queryData,
     refetch,
-  } = useQuery(GET_GRID_DATA, { fetchPolicy: "cache-and-network" });
+  } = useQuery(GET_GRID_DATA, {
+    fetchPolicy: "cache-and-network",
+    notifyOnNetworkStatusChange: true, // Ensure loading updates on refetch
+  });
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const [paused, setPaused] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { data: subData, error: subError } = useSubscription(
     GRID_SUBSCRIPTION,
     {
@@ -82,7 +86,10 @@ function App() {
   }, [subData]);
 
   const handleUpdateVoltage = (id: string, voltage: number) => {
-    const clampedVoltage = Math.max(220, Math.min(239, voltage)); // Enforce 220-239 range
+    const clampedVoltage = Math.max(220, Math.min(239, voltage));
+    console.log(
+      `App: Sending mutation for id=${id}, voltage=${clampedVoltage}`
+    );
     updateVoltage({
       variables: { id, voltage: clampedVoltage },
       optimisticResponse: {
@@ -119,6 +126,18 @@ function App() {
       .catch((error) => console.error("Mutation error:", error));
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch({ fetchPolicy: "network-only" }); // Force network fetch
+      console.log("Refetch completed, new data:", queryData?.grid);
+    } catch (error) {
+      console.error("Refetch error:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const renderedGrid = useMemo(() => {
     if (!queryData?.grid) return null;
     return queryData.grid.map((entry: GridEntry) => (
@@ -142,8 +161,8 @@ function App() {
       <ControlPanel
         paused={paused}
         onTogglePause={() => setPaused(!paused)}
-        onRefresh={refetch}
-        loading={queryLoading}
+        onRefresh={handleRefresh}
+        loading={queryLoading || isRefreshing}
       />
       <ul style={{ listStyle: "none", padding: 0 }}>{renderedGrid}</ul>
     </div>
