@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { ApolloClient, InMemoryCache, ApolloProvider } from "@apollo/client";
 import { WebSocketLink } from "@apollo/client/link/ws";
-import App from "./App.tsx";
+import App from "./App";
 import "./index.css";
 
 //* WebSocket link: A live courier service delivering real-time book updates (and static queries) from our local publishing house
