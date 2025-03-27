@@ -37,7 +37,6 @@ const Query = new GraphQLObjectType({
     grid: {
       type: new GraphQLList(GridType),
       resolve: () => {
-        // Simulate fresh voltage readings on each query
         gridData = gridData.map((entry) => ({
           ...entry,
           voltage: Math.max(
@@ -75,6 +74,40 @@ const Mutation = new GraphQLObjectType({
         return null;
       },
     },
+    addNode: {
+      type: GridType,
+      args: {
+        id: { type: GraphQLString },
+      },
+      resolve: (_, { id }) => {
+        if (gridData.some((item) => item.id === id)) {
+          throw new Error(`Node with id ${id} already exists`);
+        }
+        const newNode = {
+          id,
+          voltage: 230, // Default voltage
+          timestamp: new Date().toISOString(),
+        };
+        gridData.push(newNode);
+        console.log(`Added node: ${JSON.stringify(newNode)}`);
+        return newNode;
+      },
+    },
+    deleteNode: {
+      type: GridType,
+      args: {
+        id: { type: GraphQLString },
+      },
+      resolve: (_, { id }) => {
+        const index = gridData.findIndex((item) => item.id === id);
+        if (index === -1) {
+          throw new Error(`Node with id ${id} not found`);
+        }
+        const [deletedNode] = gridData.splice(index, 1);
+        console.log(`Deleted node: ${JSON.stringify(deletedNode)}`);
+        return deletedNode;
+      },
+    },
   },
 });
 
@@ -85,10 +118,12 @@ const Subscription = new GraphQLObjectType({
       type: GridType,
       subscribe: async function* () {
         while (true) {
-          const entry = gridData.find((item) => item.id === "1");
+          const randomIndex = Math.floor(Math.random() * gridData.length);
+          const entry = gridData[randomIndex];
           const newVoltage = entry.voltage + Math.floor(Math.random() * 10) - 5;
           entry.voltage = Math.max(220, Math.min(239, newVoltage));
           entry.timestamp = new Date().toISOString();
+          gridData[randomIndex] = entry;
           const update = { gridUpdate: { ...entry } };
           console.log(`Subscription yielding: ${JSON.stringify(update)}`);
           yield update;
