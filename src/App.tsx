@@ -1,10 +1,5 @@
-import {
-  useQuery,
-  useMutation,
-  useSubscription,
-  gql,
-} from "@apollo/client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery, useMutation, useSubscription, gql } from "@apollo/client";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { GridNode } from "./components/GridNode";
 import { ControlPanel } from "./components/ControlPanel";
 import { VoltageChart } from "./components/VoltageChart";
@@ -66,11 +61,9 @@ export type GridEntry = {
 };
 
 function App() {
-  // --- State Management ---
   const [paused, setPaused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [voltageHistory, setVoltageHistory] = useState<GridEntry[]>(() => {
-    // Load from localStorage on mount
     const saved = localStorage.getItem("voltageHistory");
     return saved ? JSON.parse(saved) : [];
   });
@@ -82,8 +75,8 @@ function App() {
     add?: boolean;
     delete?: boolean;
   }>({});
+  const processedUpdatesRef = useRef<Set<string>>(new Set()); // Use ref for persistence
 
-  // --- Apollo Hooks ---
   const {
     loading: queryLoading,
     error: queryError,
@@ -102,6 +95,11 @@ function App() {
       skip: paused || !queryData,
       onSubscriptionData: ({ client, subscriptionData }) => {
         const newEntry = subscriptionData.data.gridUpdate;
+        const key = `${newEntry.id}-${newEntry.timestamp}-${newEntry.voltage}`;
+        if (processedUpdatesRef.current.has(key)) {
+          console.log("Skipping duplicate subscription update:", newEntry);
+          return;
+        }
         const cachedData = client.readQuery<{ grid: GridEntry[] }>({
           query: GET_GRID_DATA,
         });
@@ -114,21 +112,18 @@ function App() {
               ),
             },
           });
-          updateHistory(newEntry);
+          updateHistory(newEntry, "subscription", key);
         }
       },
     }
   );
 
-  // --- Effects ---
-  // Initialize selectedNodes with all nodes from queryData
   useEffect(() => {
     if (queryData?.grid && selectedNodes.length === 0) {
       setSelectedNodes(queryData.grid.map((entry: GridEntry) => entry.id));
     }
   }, [queryData, selectedNodes.length]);
 
-  // Handle subscription updates and alerts
   useEffect(() => {
     if (subData?.gridUpdate) {
       const { id, voltage } = subData.gridUpdate;
@@ -140,58 +135,80 @@ function App() {
     }
   }, [subData]);
 
-  // Persist voltageHistory to localStorage
   useEffect(() => {
     localStorage.setItem("voltageHistory", JSON.stringify(voltageHistory));
   }, [voltageHistory]);
 
-  // --- Utility Functions ---
-  const updateHistory = useCallback((newEntry: GridEntry) => {
-    setVoltageHistory((prev) => [...prev, newEntry].slice(-200));
-  }, []);
+  const updateHistory = useCallback(
+    (newEntry: GridEntry, source: string, key: string) => {
+      if (processedUpdatesRef.current.has(key)) {
+        console.log(`Duplicate skipped from ${source}:`, newEntry, { key });
+        return;
+      }
+      setVoltageHistory((prev) => {
+        console.log(`updateHistory from ${source}:`, newEntry, { key });
+        const isDuplicate = prev.some(
+          (entry) =>
+            entry.id === newEntry.id &&
+            entry.timestamp === newEntry.timestamp &&
+            entry.voltage === newEntry.voltage
+        );
+        if (isDuplicate) {
+          console.log("Duplicate detected in history, skipping:", newEntry);
+          return prev;
+        }
+        processedUpdatesRef.current.add(key);
+        return [...prev, newEntry].slice(-200);
+      });
+    },
+    []
+  );
 
   const addAlert = useCallback((message: string) => {
     setAlerts((prev) => [message, ...prev.slice(0, 2)]);
     setTimeout(() => {
       setAlerts((prev) => prev.filter((a) => a !== message));
-    }, 5000); // Auto-dismiss after 5 seconds
+    }, 5000);
   }, []);
 
-  // --- Handlers ---
   const handleUpdateVoltage = useCallback(
     (id: string, voltage: number) => {
       const clampedVoltage = Math.max(220, Math.min(239, voltage));
+      const timestamp = new Date().toISOString();
+      const optimisticEntry = { id, voltage: clampedVoltage, timestamp };
+      const optimisticKey = `${id}-${timestamp}-${clampedVoltage}`;
+
       updateVoltage({
         variables: { id, voltage: clampedVoltage },
         optimisticResponse: {
           updateVoltage: {
-            id,
-            voltage: clampedVoltage,
-            timestamp: new Date().toISOString(),
+            ...optimisticEntry,
             __typename: "Grid",
           },
         },
         update: (cache, { data }) => {
           const updatedEntry = data?.updateVoltage;
-          if (updatedEntry) {
-            const cachedData = cache.readQuery<{ grid: GridEntry[] }>({
+          if (!updatedEntry) return; // Skip if no data
+          const isOptimistic =
+            updatedEntry.timestamp === optimisticEntry.timestamp;
+          const serverKey = `${updatedEntry.id}-${updatedEntry.timestamp}-${updatedEntry.voltage}`;
+
+          const cachedData = cache.readQuery<{ grid: GridEntry[] }>({
+            query: GET_GRID_DATA,
+          });
+          if (cachedData) {
+            cache.writeQuery({
               query: GET_GRID_DATA,
+              data: {
+                grid: cachedData.grid.map((entry) =>
+                  entry.id === updatedEntry.id ? updatedEntry : entry
+                ),
+              },
             });
-            if (cachedData) {
-              cache.writeQuery({
-                query: GET_GRID_DATA,
-                data: {
-                  grid: cachedData.grid.map((entry) =>
-                    entry.id === updatedEntry.id ? updatedEntry : entry
-                  ),
-                },
-              });
-              updateHistory(updatedEntry);
-              if (updatedEntry.voltage < 223 || updatedEntry.voltage > 237) {
-                addAlert(
-                  `Node ${id} voltage ${updatedEntry.voltage}V out of safe range!`
-                );
-              }
+            if (!isOptimistic) {
+              updateHistory(updatedEntry, "mutation", serverKey);
+            } else {
+              console.log("Skipping optimistic update:", updatedEntry);
             }
           }
         },
@@ -225,7 +242,8 @@ function App() {
                 data: { grid: [...cachedData.grid, newNode] },
               });
               setSelectedNodes((prev) => [...prev, newNode.id]);
-              updateHistory(newNode);
+              const key = `${newNode.id}-${newNode.timestamp}-${newNode.voltage}`;
+              updateHistory(newNode, "addNode", key);
             }
           }
         },
@@ -295,13 +313,12 @@ function App() {
     }
   }, [refetch, addAlert]);
 
-  // --- Memoized Computations ---
   const filteredHistory = useMemo(() => {
     const now = Date.now();
     const timeLimits = {
       "5m": 5 * 60 * 1000,
       "15m": 15 * 60 * 1000,
-      "all": Infinity,
+      all: Infinity,
     };
     const limit = timeLimits[timeFrame];
     return voltageHistory.filter(
@@ -329,7 +346,6 @@ function App() {
     );
   }, []);
 
-  // --- Render ---
   if (queryLoading && !queryData) return <p>Loading grid data...</p>;
   if (queryError) return <p>Error: {queryError.message}</p>;
   if (subError) return <p>Subscription Error: {subError.message}</p>;
@@ -410,6 +426,7 @@ function App() {
         onDeleteNode={handleDeleteNode}
         loading={queryLoading || isRefreshing}
         mutationLoading={mutationLoading}
+        nodes={queryData?.grid || []} // Pass nodes to ControlPanel
       />
       <VoltageChart history={filteredHistory} />
       <ul style={{ listStyle: "none", padding: 0, marginTop: "20px" }}>
