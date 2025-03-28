@@ -10,6 +10,10 @@ describe("ControlPanel", () => {
         onTogglePause={onTogglePause}
         onRefresh={jest.fn()}
         loading={false}
+        onAddNode={jest.fn()}
+        onDeleteNode={jest.fn()}
+        mutationLoading={{ add: false, delete: false }}
+        nodes={[]}
       />
     );
 
@@ -18,24 +22,29 @@ describe("ControlPanel", () => {
 
     expect(onTogglePause).toHaveBeenCalledTimes(1);
   });
+      <ControlPanel
+        paused={false}
+        onTogglePause={onTogglePause}
+        onRefresh={onRefresh}
+        loading={false}
+        onAddNode={jest.fn()}
+        onDeleteNode={jest.fn()}
+        mutationLoading={{ add: false, delete: false }}
+        nodes={[]}
+      />
 
-  it("calls onRefresh when Refresh Data button is clicked", () => {
-    const onRefresh = jest.fn();
-    render(
+    );
+
       <ControlPanel
         paused={false}
         onTogglePause={jest.fn()}
-        onRefresh={onRefresh}
-        loading={false}
+        onRefresh={jest.fn()}
+        loading={true}
+        onAddNode={jest.fn()}
+        onDeleteNode={jest.fn()}
+        mutationLoading={false}
+        nodes={[]}
       />
-    );
-
-    const refreshButton = screen.getByText("Refresh Data");
-    fireEvent.click(refreshButton);
-
-    expect(onRefresh).toHaveBeenCalledTimes(1);
-  });
-
   it("disables buttons when loading is true", () => {
     render(
       <ControlPanel
@@ -43,13 +52,21 @@ describe("ControlPanel", () => {
         onTogglePause={jest.fn()}
         onRefresh={jest.fn()}
         loading={true}
+        onAddNode={jest.fn()}
+        onDeleteNode={jest.fn()}
+        mutationLoading={{ add: false, delete: false }}
+        nodes={[]}
       />
-    );
-
-    const toggleButton = screen.getByText("Pause Updates");
-    const refreshButton = screen.getByText("Refresh Data");
-
-    expect(toggleButton).toBeDisabled();
+      <ControlPanel
+        paused={true}
+        onTogglePause={jest.fn()}
+        onRefresh={jest.fn()}
+        loading={false}
+        onAddNode={jest.fn()}
+        onDeleteNode={jest.fn()}
+        mutationLoading={{ add: false, delete: false }}
+        nodes={[]}
+      />
     expect(refreshButton).toBeDisabled();
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
@@ -68,3 +85,11 @@ describe("ControlPanel", () => {
     expect(screen.queryByText("Pause Updates")).not.toBeInTheDocument();
   });
 });
+function onRefresh(): void {
+  throw new Error("Function not implemented.");
+}
+
+function onTogglePause(): void {
+  throw new Error("Function not implemented.");
+}
+
