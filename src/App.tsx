@@ -3,7 +3,10 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { GridNode } from "./components/GridNode";
 import { ControlPanel } from "./components/ControlPanel";
 import { VoltageChart } from "./components/VoltageChart";
+import styles from "./styles/App.module.css";
 
+//* GraphQL Queries & Mutations - Define how we fetch, subscribe, and modify grid data
+//* Kept inline for simplicity; could move to graphql/queries.ts in a larger app
 const GET_GRID_DATA = gql`
   query GetGridData {
     grid {
@@ -54,6 +57,8 @@ const DELETE_NODE = gql`
   }
 `;
 
+//* Type Definitions - Describe our grid data structure
+//* Inline for quick reference; could move to types/grid.ts if reused elsewhere
 export type GridEntry = {
   id: string;
   voltage: number;
@@ -61,30 +66,33 @@ export type GridEntry = {
 };
 
 function App() {
-  const [paused, setPaused] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  //* State - Manage UI and data flow
+  const [paused, setPaused] = useState(false); // Pause/resume subscription
+  const [isRefreshing, setIsRefreshing] = useState(false); // Track manual refresh
   const [voltageHistory, setVoltageHistory] = useState<GridEntry[]>(() => {
+    //* Load history from localStorage on mount, default to empty array
     const saved = localStorage.getItem("voltageHistory");
     return saved ? JSON.parse(saved) : [];
   });
-  const [updatedId, setUpdatedId] = useState<string | null>(null);
-  const [alerts, setAlerts] = useState<string[]>([]);
-  const [timeFrame, setTimeFrame] = useState<"5m" | "15m" | "all">("5m");
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [updatedId, setUpdatedId] = useState<string | null>(null); // Highlight updated node
+  const [alerts, setAlerts] = useState<string[]>([]); // Show temporary alerts
+  const [timeFrame, setTimeFrame] = useState<"5m" | "15m" | "all">("5m"); // Filter chart history
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]); // Nodes to display in chart
   const [mutationLoading, setMutationLoading] = useState<{
     add?: boolean;
     delete?: boolean;
-  }>({});
-  const processedUpdatesRef = useRef<Set<string>>(new Set()); // Use ref for persistence
+  }>({}); // Track mutation status
+  const processedUpdatesRef = useRef<Set<string>>(new Set()); //* Ref to track processed updates, persists across renders
 
+  //* Apollo Hooks - Fetch, subscribe, and mutate data
   const {
     loading: queryLoading,
     error: queryError,
     data: queryData,
     refetch,
   } = useQuery(GET_GRID_DATA, {
-    fetchPolicy: "cache-and-network",
-    notifyOnNetworkStatusChange: true,
+    fetchPolicy: "cache-and-network", //* Use cache first, then network for fresh data
+    notifyOnNetworkStatusChange: true, //* Update loading state on refetch
   });
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const [addNode] = useMutation(ADD_NODE);
@@ -92,14 +100,16 @@ function App() {
   const { data: subData, error: subError } = useSubscription(
     GRID_SUBSCRIPTION,
     {
-      skip: paused || !queryData,
+      skip: paused || !queryData, //* Skip if paused or no initial data
       onSubscriptionData: ({ client, subscriptionData }) => {
         const newEntry = subscriptionData.data.gridUpdate;
         const key = `${newEntry.id}-${newEntry.timestamp}-${newEntry.voltage}`;
+        //* Prevent duplicate updates using ref
         if (processedUpdatesRef.current.has(key)) {
           console.log("Skipping duplicate subscription update:", newEntry);
           return;
         }
+        //* Update Apollo cache with new entry
         const cachedData = client.readQuery<{ grid: GridEntry[] }>({
           query: GET_GRID_DATA,
         });
@@ -118,35 +128,42 @@ function App() {
     }
   );
 
+  //* Effects - Handle side effects after render
   useEffect(() => {
+    //* Set initial selected nodes from query data if none selected
     if (queryData?.grid && selectedNodes.length === 0) {
       setSelectedNodes(queryData.grid.map((entry: GridEntry) => entry.id));
     }
   }, [queryData, selectedNodes.length]);
 
   useEffect(() => {
+    //* Handle subscription updates: alerts and highlight
     if (subData?.gridUpdate) {
       const { id, voltage } = subData.gridUpdate;
       if (voltage < 223 || voltage > 237) {
         addAlert(`Node ${id} voltage ${voltage}V out of safe range!`);
       }
       setUpdatedId(id);
-      setTimeout(() => setUpdatedId(null), 500);
+      setTimeout(() => setUpdatedId(null), 500); //* Clear highlight after 500ms
     }
   }, [subData]);
 
   useEffect(() => {
+    //* Persist voltage history to localStorage
     localStorage.setItem("voltageHistory", JSON.stringify(voltageHistory));
   }, [voltageHistory]);
 
+  //* Callbacks - Memoized functions for performance
   const updateHistory = useCallback(
     (newEntry: GridEntry, source: string, key: string) => {
+      //* Skip duplicates tracked by ref
       if (processedUpdatesRef.current.has(key)) {
         console.log(`Duplicate skipped from ${source}:`, newEntry, { key });
         return;
       }
       setVoltageHistory((prev) => {
         console.log(`updateHistory from ${source}:`, newEntry, { key });
+        //* Check for duplicates in history array
         const isDuplicate = prev.some(
           (entry) =>
             entry.id === newEntry.id &&
@@ -157,23 +174,25 @@ function App() {
           console.log("Duplicate detected in history, skipping:", newEntry);
           return prev;
         }
-        processedUpdatesRef.current.add(key);
-        return [...prev, newEntry].slice(-200);
+        processedUpdatesRef.current.add(key); //* Mark as processed
+        return [...prev, newEntry].slice(-200); //* Keep last 200 entries
       });
     },
     []
   );
 
   const addAlert = useCallback((message: string) => {
+    //* Add alert, limit to 3, auto-clear after 5s
     setAlerts((prev) => [message, ...prev.slice(0, 2)]);
-    setTimeout(() => {
-      setAlerts((prev) => prev.filter((a) => a !== message));
-    }, 5000);
+    setTimeout(
+      () => setAlerts((prev) => prev.filter((a) => a !== message)),
+      5000
+    );
   }, []);
 
   const handleUpdateVoltage = useCallback(
     (id: string, voltage: number) => {
-      const clampedVoltage = Math.max(220, Math.min(239, voltage));
+      const clampedVoltage = Math.max(220, Math.min(239, voltage)); //* Clamp to safe range
       const timestamp = new Date().toISOString();
       const optimisticEntry = { id, voltage: clampedVoltage, timestamp };
       const optimisticKey = `${id}-${timestamp}-${clampedVoltage}`;
@@ -181,18 +200,15 @@ function App() {
       updateVoltage({
         variables: { id, voltage: clampedVoltage },
         optimisticResponse: {
-          updateVoltage: {
-            ...optimisticEntry,
-            __typename: "Grid",
-          },
+          updateVoltage: { ...optimisticEntry, __typename: "Grid" }, //* Optimistic UI update
         },
         update: (cache, { data }) => {
           const updatedEntry = data?.updateVoltage;
-          if (!updatedEntry) return; // Skip if no data
+          if (!updatedEntry) return;
           const isOptimistic =
             updatedEntry.timestamp === optimisticEntry.timestamp;
           const serverKey = `${updatedEntry.id}-${updatedEntry.timestamp}-${updatedEntry.voltage}`;
-
+          //* Update cache with new voltage
           const cachedData = cache.readQuery<{ grid: GridEntry[] }>({
             query: GET_GRID_DATA,
           });
@@ -205,11 +221,9 @@ function App() {
                 ),
               },
             });
-            if (!isOptimistic) {
+            //* Add to history only if not optimistic (server-confirmed)
+            if (!isOptimistic)
               updateHistory(updatedEntry, "mutation", serverKey);
-            } else {
-              console.log("Skipping optimistic update:", updatedEntry);
-            }
           }
         },
       })
@@ -294,7 +308,7 @@ function App() {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const { data } = await refetch({ fetchPolicy: "network-only" });
+      const { data } = await refetch({ fetchPolicy: "network-only" }); //* Force network fetch
       if (data?.grid) {
         setVoltageHistory((prev) => {
           const latestById = new Map(prev.map((entry) => [entry.id, entry]));
@@ -313,7 +327,12 @@ function App() {
     }
   }, [refetch, addAlert]);
 
+  //* Memoized Computations - Optimize performance
   const filteredHistory = useMemo(() => {
+    //* Filter history by time frame and selected nodes for VoltageChart
+    //* Why: Prevents re-filtering on every render, only when dependencies change
+    //* Where: Used by VoltageChart to display relevant data
+    //* What: Returns subset of voltageHistory based on time and node selection
     const now = Date.now();
     const timeLimits = {
       "5m": 5 * 60 * 1000,
@@ -323,90 +342,84 @@ function App() {
     const limit = timeLimits[timeFrame];
     return voltageHistory.filter(
       (entry) =>
-        now - new Date(entry.timestamp).getTime() <= limit &&
-        selectedNodes.includes(entry.id)
+        now - new Date(entry.timestamp).getTime() <= limit && //* Check time range
+        selectedNodes.includes(entry.id) //* Check node selection
     );
   }, [voltageHistory, timeFrame, selectedNodes]);
 
   const renderedGrid = useMemo(() => {
+    //* Render GridNode components only when grid data or updatedId changes
+    //* Why: Avoids re-rendering all nodes unnecessarily
+    //* Where: Used in the node list below
+    //* What: Maps queryData.grid to GridNode components
     if (!queryData?.grid) return null;
     return queryData.grid.map((entry: GridEntry) => (
       <GridNode
-        key={entry.id}
+        key={entry.id} //* Key ensures efficient DOM diffing
         entry={entry}
-        updatedId={updatedId}
+        updatedId={updatedId} //* Highlights recently updated node
         onUpdateVoltage={handleUpdateVoltage}
       />
     ));
   }, [queryData?.grid, updatedId, handleUpdateVoltage]);
 
   const toggleNode = useCallback((id: string) => {
+    //* Toggle a node's selection for chart filtering
+    //* Why: Memoized to prevent re-creation on every render
+    //* Where: Called by checkbox onChange
+    //* What: Adds/removes node ID from selectedNodes
     setSelectedNodes((prev) =>
       prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]
     );
   }, []);
 
-  if (queryLoading && !queryData) return <p>Loading grid data...</p>;
-  if (queryError) return <p>Error: {queryError.message}</p>;
-  if (subError) return <p>Subscription Error: {subError.message}</p>;
+  //* Render - Define the UI structure
+  //* Why: This is the visual output, updated by state changes
+  //* Where: Root of the component, returned after hooks
+  //* What: Combines header, alerts, filters, controls, chart, and node list
+  if (queryLoading && !queryData) return <p>Loading grid data...</p>; //* Initial load state
+  if (queryError) return <p>Error: {queryError.message}</p>; //* Query error state
+  if (subError) return <p>Subscription Error: {subError.message}</p>; //* Subscription error state
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ marginBottom: "10px" }}>Energy Grid Dashboard</h1>
+    <div className={styles.container}>
+      {/* Header */}
+      <h1 className={styles.header}>Energy Grid Dashboard</h1>
+
+      {/* Alerts Section */}
       {alerts.length > 0 && (
-        <div
-          style={{
-            position: "fixed",
-            top: "10px",
-            right: "10px",
-            background: "red",
-            color: "white",
-            padding: "10px",
-            borderRadius: "5px",
-            maxWidth: "300px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-            zIndex: 1000,
-          }}
-        >
+        <div className={styles.alerts}>
           {alerts.map((alert, idx) => (
-            <p key={idx} style={{ margin: "5px 0" }}>
+            <p key={idx} className={styles.alert}>
               {alert}
             </p>
           ))}
           <button
             onClick={() => setAlerts([])}
-            style={{
-              display: "block",
-              margin: "5px auto",
-              padding: "5px 10px",
-              background: "white",
-              color: "red",
-              border: "none",
-              borderRadius: "3px",
-              cursor: "pointer",
-            }}
+            className={styles.alertClearButton}
           >
             Clear Alerts
           </button>
         </div>
       )}
-      <p style={{ marginBottom: "15px" }}>
+      <p className={styles.subheader}>
         Real-time updates via GraphQL subscription (random node every 3s)
       </p>
-      <div style={{ marginBottom: "15px" }}>
-        <label style={{ marginRight: "10px" }}>Time Frame: </label>
+
+      {/* Filter Sections */}
+      <div className={styles.filterSection}>
+        <label className={styles.filterLabel}>Time Frame: </label>
         <select
           value={timeFrame}
           onChange={(e) => setTimeFrame(e.target.value as "5m" | "15m" | "all")}
-          style={{ padding: "5px" }}
         >
           <option value="5m">Last 5 Minutes</option>
           <option value="15m">Last 15 Minutes</option>
           <option value="all">All Data</option>
         </select>
       </div>
-      <div style={{ marginBottom: "15px" }}>
-        <label style={{ marginRight: "10px" }}>Nodes: </label>
+      <div className={styles.filterSection}>
+        <label className={styles.filterLabel}>Nodes: </label>
         {queryData?.grid.map((entry: GridEntry) => (
           <label key={entry.id} style={{ marginRight: "15px" }}>
             <input
@@ -418,20 +431,20 @@ function App() {
           </label>
         ))}
       </div>
+
+      {/* Components */}
       <ControlPanel
         paused={paused}
         onTogglePause={() => setPaused(!paused)}
         onRefresh={handleRefresh}
         onAddNode={handleAddNode}
         onDeleteNode={handleDeleteNode}
-        loading={queryLoading || isRefreshing}
+        loading={queryLoading || isRefreshing} //* Show loading during fetch/refresh
         mutationLoading={mutationLoading}
-        nodes={queryData?.grid || []} // Pass nodes to ControlPanel
+        nodes={queryData?.grid || []}
       />
       <VoltageChart history={filteredHistory} />
-      <ul style={{ listStyle: "none", padding: 0, marginTop: "20px" }}>
-        {renderedGrid}
-      </ul>
+      <ul className={styles.nodeList}>{renderedGrid}</ul>
     </div>
   );
 }
