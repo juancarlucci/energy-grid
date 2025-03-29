@@ -1,0 +1,31 @@
+.node {
+  background-color: var(--input-background-color);
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.node.updated {
+  border-color: var(--highlight-color);
+}
+
+.label {
+  color: var(--secondary-text-color);
+}
+
+.voltage {
+  color: var(--primary-text-color);
+  font-weight: bold;
+}
+
+.voltage.safe {
+  color: var(--success-color);
+}
+
+.voltage.warning {
+  color: var(--warning-color);
+}
