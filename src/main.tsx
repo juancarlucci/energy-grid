@@ -4,6 +4,7 @@ import { ApolloClient, InMemoryCache, ApolloProvider } from "@apollo/client";
 import { WebSocketLink } from "@apollo/client/link/ws";
 import App from "./App";
 import "./index.css";
+import "./styles/global.css";
 
 //* WebSocket link: A live courier service delivering real-time book updates (and static queries) from our local publishing house
 const wsLink = new WebSocketLink({
