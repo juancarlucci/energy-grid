@@ -1,6 +1,6 @@
 # Energy Grid Dashboard
 
-A React-based web application simulating real-time energy grid monitoring using GraphQL queries and subscriptions. Built with Apollo Client, it fetches mock static data and delivers live voltage updates via a local WebSocket server. Think of it as a utility dashboard for tracking grid metrics—like voltage—across multiple nodes, blending historical data with live updates.
+A real-time dashboard to monitor and manage energy grid nodes using React and GraphQL, with a WebSocket-based server.
 
 ## Overview
 
@@ -8,14 +8,21 @@ This project mimics a small-scale energy grid dashboard, pulling initial data (e
 
 ## Features
 
-- **Static Data Fetching**: Pulls initial grid data (IDs "1", "2", "3") from a local GraphQL server via queries.
-- **Real-Time Updates**: Subscribes to the same server for live voltage updates on `id: "1"`, refreshing every 3 seconds.
-- **Visual Feedback**: Highlights updated entries with a brief green flash for clarity.
-- **Optimized Rendering**: Uses `useMemo` to ensure efficient UI updates without unnecessary re-renders.
+## Features
 
-_See a demo screenshot below:_  
-![Dashboard Screenshot](https://via.placeholder.com/600x300.png?text=Energy+Grid+Dashboard+Screenshot)  
-_(Replace with an actual screenshot of the dashboard showing the green flash.)_
+- **Real-Time Updates**: Voltage updates for nodes every ~3 seconds via GraphQL subscription.
+- **Voltage Chart**: Displays voltage history with green (safe: 223V–237V) and red (out-of-range) dots.
+- **Node Management**:
+  - View current voltage for each node.
+  - Update node voltage manually (clamped to 220V–239V).
+  - Add new nodes by ID.
+  - Delete existing nodes.
+- **Controls**:
+  - Pause/resume real-time updates.
+  - Refresh data manually.
+  - Filter chart by time frame (5m, 15m, all) and node visibility.
+- **Alerts**: Pop-up warnings for out-of-range voltages (clears after 5s).
+- **Persistence**: Voltage history saved in `localStorage`.
 
 ## Getting Started
 
@@ -60,12 +67,21 @@ _(Replace with an actual screenshot of the dashboard showing the green flash.)_
 
 ### Usage
 
-Once running, the dashboard displays:
+Dashboard: See node voltages and chart with real-time updates from server.cjs.
 
-- A list of grid nodes (IDs "1", "2", "3") with initial voltage and timestamp data.
-- Live updates for ID "1" every 3 seconds, highlighted with a green flash for 0.5 seconds.
+Control Panel:
 
-Interact with the UI to see real-time changes—no user input is required beyond launching the app.
+"Pause/Resume": Toggle subscription updates.
+
+"Refresh": Fetch latest data from the server.
+
+"Add Node": Enter an ID (e.g., "4") and click to add a new node.
+
+"Delete Node": Select a node from the dropdown and click to remove it.
+
+Nodes: Adjust voltage via input fields; toggle chart visibility with checkboxes.
+
+Chart: Switch time frames (5m, 15m, all) via dropdown.
 
 ### Architecture
 
@@ -81,25 +97,14 @@ The app follows a simple flow:
 
 ### Key Components
 
-- **Apollo Client (`main.tsx`):** The central hub, set up with `ApolloProvider` to share a cache across the app. Uses a WebSocket link for queries and subscriptions.
-- **`useQuery` (`App.tsx`):** Fetches static grid data (e.g., `GET_GRID_DATA`) and updates the UI when loaded.
-- **`useSubscription` (`App.tsx`):** Listens for live updates (e.g., `GRID_SUBSCRIPTION`) and refreshes ID "1" every 3 seconds.
-- **InMemoryCache:** Stores data by ID (e.g., `Grid:1`) for fast access and deduplication.
-- **WebSocket Server (`server.cjs`):** Supplies static data and pushes live voltage updates.
+### Key Components
 
-### Technical Highlights
-
-- **GraphQL Queries:** Fetch initial data efficiently.
-- **Subscriptions:** Deliver real-time updates via WebSocket using `subscriptions-transport-ws`.
-- **State Management:** Combines query and subscription data in `liveData` with `useEffect`.
-- **Performance:** `useMemo` caches rendered UI elements; the cache minimizes network calls.
-
-**Example Flow:**
-
-1. `useQuery` loads static data → cached in Apollo.
-2. `useSubscription` receives updates → `useEffect` syncs `liveData` → UI flashes green.
-
-## Project Structure
+- **Apollo Client (`main.tsx`)**: Sets up `ApolloProvider` with a WebSocket link for queries, mutations, and subscriptions, sharing a cache across the app.
+- **`useQuery` (`App.tsx`)**: Fetches initial grid data via `GET_GRID_DATA` and updates the UI with current node states.
+- **`useSubscription` (`App.tsx`)**: Subscribes to `GRID_SUBSCRIPTION` for real-time updates, pushing random node voltage changes every ~3 seconds.
+- **`useMutation` (`App.tsx`)**: Handles `UPDATE_VOLTAGE`, `ADD_NODE`, and `DELETE_NODE` to modify grid nodes, updating the cache and history.
+- **InMemoryCache**: Caches node data by ID (e.g., `Grid:1`) for quick access and deduplication.
+- **WebSocket Server (`server.cjs`)**: Provides static grid data, supports mutations (`updateVoltage`, `addNode`, `deleteNode`), and broadcasts live `gridUpdate` events via WebSocket.
 
 ## Why This Matters
 
