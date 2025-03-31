@@ -25,6 +25,7 @@ function App() {
   const [updatedId, setUpdatedId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // New state for pause
   const [mutationLoading, setMutationLoading] = useState<{
     add?: boolean;
     delete?: boolean;
@@ -37,7 +38,9 @@ function App() {
   } = useQuery(GET_GRID_DATA, {
     fetchPolicy: "cache-and-network",
   });
-  const { data: subData } = useSubscription(GRID_SUBSCRIPTION);
+  const { data: subData } = useSubscription(GRID_SUBSCRIPTION, {
+    skip: isPaused, // Skip subscription when paused
+  });
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const [addNode] = useMutation(ADD_NODE);
   const [deleteNode] = useMutation(DELETE_NODE);
@@ -55,7 +58,7 @@ function App() {
   }, [queryData]);
 
   useEffect(() => {
-    if (subData?.gridUpdate) {
+    if (subData?.gridUpdate && !isPaused) {
       const { id, voltage, timestamp } = subData.gridUpdate;
       console.log("Subscription update:", subData.gridUpdate);
       if (voltage < 223 || voltage > 237) {
@@ -72,7 +75,7 @@ function App() {
         return prev;
       });
     }
-  }, [subData]);
+  }, [subData, isPaused]);
 
   const addAlert = useCallback((message: string) => {
     setAlerts((prev) => [...prev, message].slice(-5));
@@ -178,12 +181,12 @@ function App() {
               (entry) => entry.id === newEntry.id
             );
             if (index !== -1) {
-              updatedHistory[index] = newEntry; // Update existing
+              updatedHistory[index] = newEntry;
             } else {
-              updatedHistory.push(newEntry); // Add new
+              updatedHistory.push(newEntry);
             }
           });
-          return updatedHistory.slice(-200); // Keep latest 200
+          return updatedHistory.slice(-200);
         });
       }
     } catch (error) {
@@ -192,6 +195,10 @@ function App() {
       setIsRefreshing(false);
     }
   }, [refetch, addAlert]);
+
+  const handleTogglePause = useCallback(() => {
+    setIsPaused((prev) => !prev);
+  }, []);
 
   const filteredHistory = useMemo(() => {
     const now = Date.now();
@@ -220,8 +227,8 @@ function App() {
     return (
       <>
         <ControlPanel
-          paused={false}
-          onTogglePause={() => {}}
+          paused={isPaused}
+          onTogglePause={handleTogglePause}
           onRefresh={handleRefresh}
           onAddNode={handleAddNode}
           onDeleteNode={handleDeleteNode}
