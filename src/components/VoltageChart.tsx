@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -50,56 +50,57 @@ export const VoltageChart = ({ history }: VoltageChartProps) => {
     null
   );
 
-  const initialData = useMemo(() => {
-    const uniqueTimestamps = Array.from(
-      new Set(history.map((entry) => entry.timestamp))
-    ).sort();
-    const labels = uniqueTimestamps.map((ts) =>
-      new Date(ts).toLocaleTimeString()
-    );
-    const nodes = Array.from(new Set(history.map((entry) => entry.id)));
+  const labels = Array.from(new Set(history.map((entry) => entry.timestamp)))
+    .sort()
+    .map((ts) => new Date(ts).toLocaleTimeString());
 
-    const datasets = nodes.map((nodeId) => {
-      const nodeData = history.filter((entry) => entry.id === nodeId);
-      const firstEntry = nodeData.reduce((earliest, current) =>
-        new Date(current.timestamp) < new Date(earliest.timestamp)
-          ? current
-          : earliest
-      );
-      const firstTimestamp = firstEntry.timestamp;
-      let lastVoltage: number | null = null;
-      const data = labels.map((label) => {
-        const timestamp = uniqueTimestamps[labels.indexOf(label)];
-        const entry = nodeData.find((e) => e.timestamp === timestamp);
-        if (entry) lastVoltage = entry.voltage;
-        return new Date(timestamp) < new Date(firstTimestamp)
-          ? null
-          : lastVoltage; // Null before first point
-      });
-      const pointColors = labels.map((label) => {
-        const timestamp = uniqueTimestamps[labels.indexOf(label)];
-        const entry = nodeData.find((e) => e.timestamp === timestamp);
-        const voltage = entry ? entry.voltage : lastVoltage;
-        return voltage && voltage >= 223 && voltage <= 237
-          ? "#2ecc71"
-          : "#f39c12";
-      });
+  const chartData = {
+    labels,
+    datasets: Array.from(new Set(history.map((entry) => entry.id))).map(
+      (nodeId) => {
+        const nodeData = history.filter((entry) => entry.id === nodeId);
+        const firstEntry = nodeData.reduce((earliest, current) =>
+          new Date(current.timestamp) < new Date(earliest.timestamp)
+            ? current
+            : earliest
+        );
+        const firstTimestamp = firstEntry.timestamp;
+        let lastVoltage: number | null = null;
+        const data = labels.map((label) => {
+          const timestamp = history.find(
+            (e) => new Date(e.timestamp).toLocaleTimeString() === label
+          )?.timestamp;
+          const entry = nodeData.find((e) => e.timestamp === timestamp);
+          if (entry) lastVoltage = entry.voltage;
+          return timestamp && new Date(timestamp) < new Date(firstTimestamp)
+            ? null
+            : lastVoltage;
+        });
+        const pointColors = labels.map((label) => {
+          const timestamp = history.find(
+            (e) => new Date(e.timestamp).toLocaleTimeString() === label
+          )?.timestamp;
+          const entry = nodeData.find((e) => e.timestamp === timestamp);
+          const voltage = entry ? entry.voltage : lastVoltage;
+          return voltage && voltage >= 223 && voltage <= 237
+            ? "#2ecc71"
+            : "#f39c12";
+        });
 
-      return {
-        label: `Node ${nodeId}`,
-        data,
-        borderColor: getRandomColor(),
-        backgroundColor: "transparent",
-        pointBackgroundColor: pointColors,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        tension: 0.3,
-        fill: false,
-      };
-    });
-
-    return { labels, datasets };
-  }, []);
+        return {
+          label: `Node ${nodeId}`,
+          data,
+          borderColor: getRandomColor(),
+          backgroundColor: "transparent",
+          pointBackgroundColor: pointColors,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: false,
+        };
+      }
+    ),
+  };
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -268,7 +269,7 @@ export const VoltageChart = ({ history }: VoltageChartProps) => {
 
   return (
     <div className="w-full h-[400px] bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-      <Line ref={chartRef} data={initialData} options={options} />
+      <Line ref={chartRef} data={chartData} options={options} />
     </div>
   );
 };
