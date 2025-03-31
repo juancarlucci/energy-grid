@@ -1,28 +1,29 @@
 # Energy Grid Dashboard
 
-A real-time dashboard to monitor and manage energy grid nodes using React and GraphQL, with a WebSocket-based server.
+![Energy Grid Dashboard](./src/docs/Energy-Grid-Voltage-Monitor.png)
+
+A real-time dashboard to monitor and manage energy grid nodes using React and GraphQL, powered by a WebSocket-based server.
 
 ## Overview
 
-This project mimics a small-scale energy grid dashboard, pulling initial data (e.g., grid nodes "1", "2", "3") from a local GraphQL server and subscribing to live voltage updates for node "1" every 3 seconds. It showcases modern front-end techniques: GraphQL for data fetching, WebSocket for real-time updates, and Apollo Client for efficient caching. Ideal for developers exploring real-time dashboards or utility monitoring concepts.
+This project simulates a small-scale energy grid dashboard, fetching initial data (e.g., nodes "1", "2", "3") from a local GraphQL server and delivering live voltage updates every 3 seconds via subscriptions. Built with modern front-end tools—React, GraphQL, Apollo Client, and WebSocket—it’s a practical example of real-time data visualization, ideal for developers exploring utility monitoring or dashboard applications.
 
 ## Features
 
-## Features
-
-- **Real-Time Updates**: Voltage updates for nodes every ~3 seconds via GraphQL subscription.
-- **Voltage Chart**: Displays voltage history with green (safe: 223V–237V) and red (out-of-range) dots.
+- **Real-Time Updates**: Voltage changes for nodes broadcast every 3 seconds via GraphQL subscriptions.
+- **Voltage Chart**:
+  - Displays voltage history with connected lines.
+  - Green dots for safe voltages (223V–237V), orange for out-of-range.
+  - New nodes start with a single dot, connecting forward without fake history.
 - **Node Management**:
-  - View current voltage for each node.
-  - Update node voltage manually (clamped to 220V–239V).
+  - View current voltage and timestamp per node.
+  - Manually update voltages (clamped to 220V–239V).
   - Add new nodes by ID.
-  - Delete existing nodes.
+  - Delete nodes with full removal from UI and chart.
 - **Controls**:
-  - Pause/resume real-time updates.
-  - Refresh data manually.
-  - Filter chart by time frame (5m, 15m, all) and node visibility.
-- **Alerts**: Pop-up warnings for out-of-range voltages (clears after 5s).
-- **Persistence**: Voltage history saved in `localStorage`.
+  - Refresh fetches latest data, merging with history.
+  - Filter chart by time frame (5m, 15m, All) with right-aligned data.
+- **Alerts**: Warnings for out-of-range voltages, limited to 5 on-screen.
 
 ## Getting Started
 
@@ -38,6 +39,7 @@ This project mimics a small-scale energy grid dashboard, pulling initial data (e
    ```bash
    git clone https://github.com/juancarlucci/energy-grid.git
    cd energy-grid
+
    ```
 
 2. Install dependencies:
@@ -88,8 +90,8 @@ Chart: Switch time frames (5m, 15m, all) via dropdown.
 The app follows a simple flow:
 
 1. **Server (`server.cjs`):** A local WebSocket server at `ws://localhost:4000/graphql` provides mock static data and live updates.
-2. **Apollo Client (`main.tsx`):** Manages data fetching and caching, connecting via WebSocket.
-3. **UI (`App.tsx`):** Displays static and live data, optimized with `useMemo`.
+2. **Apollo Client (`main.tsx`):** Handles queries, mutations, and subscriptions via a split HTTP/WebSocket link.
+3. **UI (`App.tsx`):** Combines static and live data, optimized with useMemo and useEffect.
 
 **Library Analogy:** Think of Apollo Client as a library headquarters fetching "books" (data) from a warehouse (server), while the UI is a branch library serving readers (users) with static shelves and live deliveries.
 
@@ -97,64 +99,57 @@ The app follows a simple flow:
 
 ### Key Components
 
-### Key Components
-
-- **Apollo Client (`main.tsx`)**: Sets up `ApolloProvider` with a WebSocket link for queries, mutations, and subscriptions, sharing a cache across the app.
-- **`useQuery` (`App.tsx`)**: Fetches initial grid data via `GET_GRID_DATA` and updates the UI with current node states.
-- **`useSubscription` (`App.tsx`)**: Subscribes to `GRID_SUBSCRIPTION` for real-time updates, pushing random node voltage changes every ~3 seconds.
-- **`useMutation` (`App.tsx`)**: Handles `UPDATE_VOLTAGE`, `ADD_NODE`, and `DELETE_NODE` to modify grid nodes, updating the cache and history.
-- **InMemoryCache**: Caches node data by ID (e.g., `Grid:1`) for quick access and deduplication.
-- **WebSocket Server (`server.cjs`)**: Provides static grid data, supports mutations (`updateVoltage`, `addNode`, `deleteNode`), and broadcasts live `gridUpdate` events via WebSocket.
+- **Apollo Client (`main.tsx`)**: Uses splitLink for HTTP queries/mutations and WebSocket subscriptions, with InMemoryCache for data consistency.
+- **`useQuery` (`App.tsx`)**: Fetches initial grid data via `GET_GRID_DATA`.
+- **`useSubscription` (`App.tsx`)**: Listens to GRID_SUBSCRIPTION for live updates.
+- **`useMutation` (`App.tsx`)**: Executes UPDATE_VOLTAGE, ADD_NODE, DELETE_NODE, updating cache with cacheUtils.ts.
+- **`Chart` (`VoltageChart.tsx`)**:Renders connected voltage lines, interpolating forward from real data points only.
+- **`Cache` (`cacheUtils.ts`)**: Manages Apollo cache updates for seamless UI refreshes.
+- **`Server` (`server.cjs`)**: Mock grid data with mutations and subscription broadcasts.
 
 ## Why This Matters
 
 This project demonstrates:
 
-- **Real-Time Data:** GraphQL subscriptions for dynamic updates, key for monitoring apps.
+- **Real-Time Data:** GraphQL subscriptions enable dynamic monitoring, critical for grids.
 - **Efficient Caching:** Apollo Client’s `InMemoryCache` for scalable data management.
-- **User Experience:** Visual cues (green flash) enhance clarity, a nod to polished UX.
-
-**Potential Use Case:** A utility company could adapt this for real grid monitoring, replacing mock data with live sensor feeds.
+- **Data Integrity:** Controlled interpolation prevents fake history while connecting lines.
+- **Scalability:** Apollo’s caching and React’s optimization handle growing data efficiently.
 
 ## Development Details
 
 ### Sample Code
 
-#### Subscription Setup (`App.tsx`):
+#### Subscription Handling (`App.tsx`):
 
 ```javascript
-const { data: subData } = useSubscription(GRID_SUBSCRIPTION);
-
 useEffect(() => {
   if (subData?.gridUpdate) {
-    setLiveData((prev) =>
-      prev.map((entry) =>
-        entry.id === subData.gridUpdate.id ? subData.gridUpdate : entry
-      )
-    );
-    setUpdatedId(subData.gridUpdate.id);
-    setTimeout(() => setUpdatedId(null), 500);
+    const { id, voltage, timestamp } = subData.gridUpdate;
+    if (voltage < 223 || voltage > 237) {
+      addAlert(`Node ${id} voltage ${voltage}V out of safe range!`);
+    }
+    setVoltageHistory((prev) => {
+      const index = prev.findIndex(
+        (entry) => entry.id === id && entry.timestamp === timestamp
+      );
+      if (index === -1)
+        return [...prev, { id, voltage, timestamp }].slice(-200);
+      return prev;
+    });
   }
 }, [subData]);
 ```
 
-#### Rendering Optimization (`App.tsx`):
+#### Chart Interpolation (VoltageChart.tsx):
 
 ```javascript
-const renderedGrid = useMemo(
-  () =>
-    liveData.map((entry) => (
-      <li
-        key={entry.id}
-        style={{
-          backgroundColor: entry.id === updatedId ? "#e0ffe0" : "transparent",
-        }}
-      >
-        Voltage: {entry.voltage} V (ID: {entry.id}, Time: {entry.timestamp})
-      </li>
-    )),
-  [liveData, updatedId]
-);
+const data = labels.map((label) => {
+  const timestamp = uniqueTimestamps[labels.indexOf(label)];
+  const entry = nodeData.find((e) => e.timestamp === timestamp);
+  if (entry) lastVoltage = entry.voltage;
+  return new Date(timestamp) < new Date(firstTimestamp) ? null : lastVoltage;
+});
 ```
 
 ### Dependencies
@@ -169,11 +164,14 @@ const renderedGrid = useMemo(
 
 \*ws: WebSocket server
 
+\*chart.js & react-chartjs-2: Chart visualization
+
+\*See package.json for full list.
+
 ### Status
 
-As of March 26, 2025, this is a functional demo with mock data. Future enhancements could include real grid data integration or multi-node subscriptions.
+As of March 31, 2025, this is a polished demo with mock data, fully functional with connected chart lines, real-time updates, and preserved history on refresh. Future steps could include real data feeds or enhanced controls.
 
 ### License
 
-MIT License - see LICENSE for details.
-TODO (Add a LICENSE file to the repo with MIT terms if applicable.)
+MIT License - see LICENSE for details. (TODO: Add LICENSE file if applicable.)
