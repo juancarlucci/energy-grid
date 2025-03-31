@@ -25,7 +25,7 @@ function App() {
   const [updatedId, setUpdatedId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isPaused, setIsPaused] = useState(false); // New state for pause
+  const [isPaused, setIsPaused] = useState(false);
   const [mutationLoading, setMutationLoading] = useState<{
     add?: boolean;
     delete?: boolean;
@@ -39,7 +39,7 @@ function App() {
     fetchPolicy: "cache-and-network",
   });
   const { data: subData } = useSubscription(GRID_SUBSCRIPTION, {
-    skip: isPaused, // Skip subscription when paused
+    skip: isPaused,
   });
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const [addNode] = useMutation(ADD_NODE);
@@ -79,6 +79,10 @@ function App() {
 
   const addAlert = useCallback((message: string) => {
     setAlerts((prev) => [...prev, message].slice(-5));
+  }, []);
+
+  const clearAlerts = useCallback(() => {
+    setAlerts([]);
   }, []);
 
   const handleUpdateVoltage = useCallback(
@@ -226,16 +230,41 @@ function App() {
     }
     return (
       <>
-        <ControlPanel
-          paused={isPaused}
-          onTogglePause={handleTogglePause}
-          onRefresh={handleRefresh}
-          onAddNode={handleAddNode}
-          onDeleteNode={handleDeleteNode}
-          loading={isRefreshing}
-          mutationLoading={mutationLoading}
-          nodes={queryData?.grid || []}
-        />
+        <div className="relative">
+          <ControlPanel
+            paused={isPaused}
+            onTogglePause={handleTogglePause}
+            onRefresh={handleRefresh}
+            onAddNode={handleAddNode}
+            onDeleteNode={handleDeleteNode}
+            loading={isRefreshing}
+            mutationLoading={mutationLoading}
+            nodes={queryData?.grid || []}
+          />
+          {alerts.length > 0 && (
+            <div className="absolute top-0 right-0 mt-2 mr-2 max-w-xs">
+              <div className="flex justify-between items-center mb-1">
+                <h3 className="text-sm font-semibold text-gray-200">Alerts</h3>
+                <button
+                  onClick={clearAlerts}
+                  className="text-xs text-gray-400 hover:text-gray-200"
+                >
+                  Clear
+                </button>
+              </div>
+              <ul className="space-y-1">
+                {alerts.map((alert, index) => (
+                  <li
+                    key={index}
+                    className="p-1 bg-red-500/20 text-red-400 text-sm rounded"
+                  >
+                    {alert}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
         <div className="mb-6">
           <div className="flex gap-2 mb-4">
             {Object.keys(TIME_LIMITS).map((frame) => (
@@ -255,21 +284,6 @@ function App() {
           <VoltageChart history={filteredHistory} />
         </div>
         <ul className="space-y-3">{renderedGrid}</ul>
-        {alerts.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold text-gray-200">Alerts</h3>
-            <ul className="space-y-2">
-              {alerts.map((alert, index) => (
-                <li
-                  key={index}
-                  className="p-2 bg-red-500/20 text-red-400 rounded"
-                >
-                  {alert}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </>
     );
   };
