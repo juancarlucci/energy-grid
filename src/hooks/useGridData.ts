@@ -13,7 +13,7 @@ import {
   DELETE_NODE,
 } from "../graphql/graphql";
 
-//* Type Definitions - Describe our grid data structure
+//* Type Definitions - Describe grid data structure
 export type GridEntry = {
   id: string;
   voltage: number;
@@ -22,7 +22,6 @@ export type GridEntry = {
 
 //* Custom Hook - Manage grid data, state, and Apollo interactions
 export function useGridData() {
-  //* State - Manage UI and data flow
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [paused, setPaused] = useState(false);
   const [voltageHistory, setVoltageHistory] = useState<GridEntry[]>(() => {
@@ -32,7 +31,6 @@ export function useGridData() {
   const [updatedId, setUpdatedId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<string[]>([]);
   const [timeFrame, setTimeFrame] = useState<"5m" | "15m" | "all">("5m");
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [mutationLoading, setMutationLoading] = useState<{
     add?: boolean;
     delete?: boolean;
@@ -98,8 +96,6 @@ export function useGridData() {
     setAlerts,
     timeFrame,
     setTimeFrame,
-    selectedNodes,
-    setSelectedNodes,
     mutationLoading,
     setMutationLoading,
     processedUpdatesRef,
