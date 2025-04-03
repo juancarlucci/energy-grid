@@ -10,8 +10,6 @@ interface ControlPanelProps {
   loading: boolean; // e.g., true during query or mutation
   mutationLoading: { add?: boolean; delete?: boolean }; // e.g., { add: true }
   nodes: { id: string }[]; // e.g., [{ id: "1" }, { id: "2" }]
-  selectedNodes: string[]; // e.g., ["1", "2"] - Nodes selected for chart
-  onToggleNode: (id: string) => void; //* Toggles node selection for chart
 }
 
 //* ControlPanel Component - Manages grid operations and node selection
@@ -20,30 +18,17 @@ export const ControlPanel = ({
   onTogglePause,
   onRefresh,
   onAddNode,
-  onDeleteNode,
   loading,
   mutationLoading,
-  nodes,
-  selectedNodes,
-  onToggleNode,
 }: ControlPanelProps) => {
   //* State - Track inputs for adding and deleting nodes
-  const [newNodeId, setNewNodeId] = useState(""); // e.g., "" or "4"
-  const [nodeToDelete, setNodeToDelete] = useState(""); // e.g., "" or "1"
-
+  const [newNodeId, setNewNodeId] = useState("");
   //* Handlers - Add or delete nodes
   const handleAdd = () => {
     const trimmedId = newNodeId.trim();
     if (trimmedId && !mutationLoading.add) {
       onAddNode(trimmedId);
       setNewNodeId("");
-    }
-  };
-
-  const handleDelete = () => {
-    if (nodeToDelete && !mutationLoading.delete) {
-      onDeleteNode(nodeToDelete);
-      setNodeToDelete("");
     }
   };
 
@@ -88,31 +73,6 @@ export const ControlPanel = ({
           }`}
         >
           {mutationLoading?.add ? "Adding..." : "Add Node"}
-        </button>
-      </div>
-      <div className="flex items-center gap-2">
-        <select
-          value={nodeToDelete}
-          onChange={(e) => setNodeToDelete(e.target.value)}
-          className="px-2 py-1 bg-gray-700 text-gray-200 border border-gray-600 rounded w-36 focus:outline-none focus:border-blue-500"
-        >
-          <option value="">Select Node to Delete</option>
-          {nodes.map((node) => (
-            <option key={node.id} value={node.id}>
-              Node {node.id}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={handleDelete}
-          disabled={mutationLoading?.delete || !nodeToDelete}
-          className={`px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 ${
-            mutationLoading?.delete || !nodeToDelete
-              ? "opacity-70 cursor-not-allowed"
-              : ""
-          }`}
-        >
-          {mutationLoading?.delete ? "Deleting..." : "Delete Node"}
         </button>
       </div>
     </div>
