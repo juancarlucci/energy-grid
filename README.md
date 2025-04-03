@@ -2,7 +2,7 @@
 
 ![Energy Grid Dashboard](./src/docs/Energy-Grid-Voltage-Monitor.png)
 
-A real-time dashboard to monitor and manage energy grid nodes using React and GraphQL, powered by a WebSocket-based server.
+A real-time dashboard to monitor and manage energy grid nodes using React, GraphQL via Apollo Client, Vite, and Tailwind CSS, powered by a WebSocket-based server. The app uses Chart.js for visualizations.
 
 ## Overview
 
@@ -167,6 +167,45 @@ const data = labels.map((label) => {
 \*chart.js & react-chartjs-2: Chart visualization
 
 \*See package.json for full list.
+
+## Lighthouse scores
+
+![Energy Grid Dashboard Lighthouse scores](./src/docs/Energy-Grid-Voltage-Monitor-Lighthouse.png)
+
+Through targeted optimizations, we achieved perfect Lighthouse scores across four key areas:
+
+### Performance: 100
+
+Optimized for speed with a Lighthouse Performance score of 100:
+
+- Implemented lazy loading for components (`VoltageChart`, `GridNode`, `ControlPanel`) using React’s `Suspense`.
+- Reduced unused JavaScript by splitting bundles (`react-vendor`, `apollo-client`, `chart-js`) and importing only necessary Chart.js modules.
+- Enabled Brotli compression with `vite-plugin-compression` and streamlined Tailwind CSS generation, cutting initial load times (FCP: 1.7s → <1s, LCP: 2.8s → <2s).
+
+### Accessibility: 100
+
+Enhanced usability for all users with a perfect Accessibility score:
+
+- Replaced generic `<div>`s with semantic HTML (`<main>`, `<article>`, `<nav>`, `<figure>`).
+- Added ARIA attributes (`aria-label`, `role="alert"`, `aria-live`) and visible focus states (`focus:ring-2`) across `App`, `GridNode`, `ControlPanel`, and `VoltageChart`.
+- Labeled inputs with `<label>` and screen-reader-only text (`sr-only`) for better navigation.
+
+### Best Practices: 100
+
+Adhered to modern development standards for a Best Practices score of 100:
+
+- Used Vite’s ESBuild for fast, minified production builds and removed Terser dependency.
+- Integrated Tailwind v3 CLI seamlessly into Vite’s workflow, eliminating manual CSS builds.
+- Tagged a stable release (`stable-working-phase-2025-04-03`) in Git for reliable versioning.
+
+### SEO: 100
+
+Maximized search engine visibility with an SEO score of 100:
+
+- Added a meta description in `public/index.html`: "Monitor grid voltage in real-time with our interactive tool. Track nodes, view charts, and optimize energy usage."
+- Fixed `robots.txt` in `public/` with valid syntax (`Allow: /`, `Sitemap`), resolving 16 errors for proper crawling and indexing.
+
+These enhancements ensure `energy-grid` is fast, accessible, maintainable, and discoverable, delivering an exceptional user experience.
 
 ### Status
 
