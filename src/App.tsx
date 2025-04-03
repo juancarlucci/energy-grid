@@ -19,50 +19,60 @@ const TIME_LIMITS: Record<string, number> = {
   "Last 5 min": 5 * 60 * 1000,
 };
 
+//* App Component - Main application managing grid data and UI
 function App() {
-  const [voltageHistory, setVoltageHistory] = useState<GridEntry[]>([]);
+  const [voltageHistory, setVoltageHistory] = useState<GridEntry[]>([]); //* e.g., [{ id: "1", voltage: 237, timestamp: "2025-03-29T10:00:00Z" }, ...]
   const [timeFrame, setTimeFrame] = useState<string>("Last 5 min");
   const [updatedId, setUpdatedId] = useState<string | null>(null);
-  const [alerts, setAlerts] = useState<string[]>([]);
+  const [alerts, setAlerts] = useState<Record<string, string | null>>({}); //* e.g., { "1": "Node 1 voltage 240V out of safe range!", "2": null }
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [mutationLoading, setMutationLoading] = useState<{
     add?: boolean;
     delete?: boolean;
   }>({});
+  const [hiddenNodes, setHiddenNodes] = useState<Set<string>>(new Set());
 
+  //* Apollo Hooks - Fetch and manage grid data
   const {
     data: queryData,
     loading,
     refetch,
   } = useQuery(GET_GRID_DATA, {
-    fetchPolicy: "cache-and-network",
-  });
+    fetchPolicy: "cache-and-network", //* Use cache first, then network
+  }); //* queryData e.g., { grid: [{ id: "1", voltage: 237, timestamp: "2025-03-29T10:00:00Z" }, ...] }
   const { data: subData } = useSubscription(GRID_SUBSCRIPTION, {
     skip: isPaused,
-  });
+  }); //* subData e.g., { gridUpdate: { id: "1", voltage: 238, timestamp: "2025-03-29T10:00:03Z" } }
   const [updateVoltage] = useMutation(UPDATE_VOLTAGE);
   const [addNode] = useMutation(ADD_NODE);
   const [deleteNode] = useMutation(DELETE_NODE);
 
+  //* Effect - Merge initial grid data into history
   useEffect(() => {
     if (queryData?.grid) {
       setVoltageHistory((prev) => {
         const serverIds = new Set(
           queryData.grid.map((entry: GridEntry) => entry.id)
-        );
-        const filtered = prev.filter((entry) => serverIds.has(entry.id));
-        return [...filtered, ...queryData.grid].slice(-200);
+        ); //* e.g., Set(["1", "2", "3"])
+        const filtered = prev.filter((entry) => serverIds.has(entry.id)); //* e.g., [{ id: "1", ... }]
+        return [...filtered, ...queryData.grid].slice(-200); //* e.g., capped at 200 entries
       });
     }
   }, [queryData]);
 
+  const addAlert = useCallback((nodeId: string, message: string | null) => {
+    setAlerts((prev) => ({ ...prev, [nodeId]: message })); //* e.g., { "1": "Node 1 voltage 240V out of safe range!" }
+  }, []);
+  //* Effect - Handle real-time subscription updates
   useEffect(() => {
     if (subData?.gridUpdate && !isPaused) {
-      const { id, voltage, timestamp } = subData.gridUpdate;
+      const { id, voltage, timestamp } = subData.gridUpdate; //* e.g., { id: "1", voltage: 238, timestamp: "2025-03-29T10:00:03Z" }
       console.log("Subscription update:", subData.gridUpdate);
       if (voltage < 223 || voltage > 237) {
-        addAlert(`Node ${id} voltage ${voltage}V out of safe range!`);
+        addAlert(id, `Node ${id} voltage ${voltage}V out of safe range!`);
+      } else {
+        addAlert(id, null); //* Clear alert if voltage is safe
       }
       setUpdatedId(id);
       setTimeout(() => setUpdatedId(null), 500);
@@ -71,20 +81,26 @@ function App() {
           (entry) => entry.id === id && entry.timestamp === timestamp
         );
         if (index === -1)
-          return [...prev, { id, voltage, timestamp }].slice(-200);
-        return prev;
+          return [...prev, { id, voltage, timestamp }].slice(-200); //* e.g., add new entry
+        return prev; //* No change if duplicate
       });
     }
-  }, [subData, isPaused]);
+  }, [subData, isPaused, addAlert]);
 
-  const addAlert = useCallback((message: string) => {
-    setAlerts((prev) => [...prev, message].slice(-5));
+  //* Callback - Handle legend click to toggle node visibility
+  const handleLegendClick = useCallback((nodeId: string) => {
+    setHiddenNodes((prev) => {
+      const newHidden = new Set(prev);
+      if (newHidden.has(nodeId)) {
+        newHidden.delete(nodeId); // e.g., show "1"
+      } else {
+        newHidden.add(nodeId); // e.g., hide "1"
+      }
+      return newHidden;
+    });
   }, []);
 
-  const clearAlerts = useCallback(() => {
-    setAlerts([]);
-  }, []);
-
+  //* Callback - Update voltage for a node
   const handleUpdateVoltage = useCallback(
     (id: string, voltage: number) => {
       updateVoltage({
@@ -93,18 +109,18 @@ function App() {
           updateVoltage: {
             id,
             voltage,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date().toISOString(), //* e.g., "2025-03-29T10:00:06Z"
             __typename: "Grid",
           },
         },
         update: (cache, { data }) => {
-          const updatedEntry = data?.updateVoltage;
-          if (updatedEntry) updateGridCache(cache, updatedEntry, "update");
+          const updatedEntry = data?.updateVoltage; //* e.g., { id: "1", voltage: 225, timestamp: "2025-03-29T10:00:06Z" }
+          if (updatedEntry) updateGridCache(cache, updatedEntry, "update"); //* Update Apollo cache
         },
       })
         .then(({ data }) => {
           if (data?.updateVoltage) {
-            const { id, voltage, timestamp } = data.updateVoltage;
+            const { id, voltage, timestamp } = data.updateVoltage; //* e.g., { id: "1", voltage: 225, timestamp: "2025-03-29T10:00:06Z" }
             setUpdatedId(id);
             setTimeout(() => setUpdatedId(null), 500);
             setVoltageHistory((prev) => {
@@ -112,43 +128,51 @@ function App() {
                 (entry) => entry.id === id && entry.timestamp === timestamp
               );
               if (index === -1)
-                return [...prev, { id, voltage, timestamp }].slice(-200);
-              return prev;
+                return [...prev, { id, voltage, timestamp }].slice(-200); //* e.g., add new entry
+              return prev; //* No change if duplicate
             });
+            if (voltage < 223 || voltage > 237) {
+              addAlert(id, `Node ${id} voltage ${voltage}V out of safe range!`);
+            } else {
+              addAlert(id, null); //* Clear alert if voltage is safe
+            }
           }
         })
         .catch((error) =>
-          addAlert(`Failed to update Node ${id}: ${error.message}`)
+          addAlert(id, `Failed to update Node ${id}: ${error.message}`)
         );
     },
     [updateVoltage, addAlert]
   );
 
+  //* Callback - Add a new node to the grid
   const handleAddNode = useCallback(
     (id: string) => {
       setMutationLoading((prev) => ({ ...prev, add: true }));
       addNode({
         variables: { id },
         update: (cache, { data }) => {
-          if (data?.addNode) updateGridCache(cache, data.addNode, "add");
+          if (data?.addNode) updateGridCache(cache, data.addNode, "add"); //* Update Apollo cache with new node
         },
       })
         .then(({ data }) => {
           if (data?.addNode) {
-            const { id, voltage, timestamp } = data.addNode;
+            const { id, voltage, timestamp } = data.addNode; //* e.g., { id: "4", voltage: 230, timestamp: "2025-03-29T10:00:09Z" }
             setVoltageHistory((prev) =>
               [...prev, { id, voltage, timestamp }].slice(-200)
             );
+            addAlert(id, null); //* Initialize with no alert
           }
         })
         .catch((error) =>
-          addAlert(`Failed to add Node ${id}: ${error.message}`)
+          addAlert(id, `Failed to add Node ${id}: ${error.message}`)
         )
         .finally(() => setMutationLoading((prev) => ({ ...prev, add: false })));
     },
     [addNode, addAlert]
   );
 
+  //* Callback - Delete a node from the grid
   const handleDeleteNode = useCallback(
     (id: string) => {
       setMutationLoading((prev) => ({ ...prev, delete: true }));
@@ -157,35 +181,41 @@ function App() {
         update: (cache, { data }) => {
           const deletedNode = data?.deleteNode;
           if (deletedNode) {
-            updateGridCache(cache, deletedNode, "delete");
-            setVoltageHistory((prev) =>
-              prev.filter((entry) => entry.id !== id)
+            updateGridCache(cache, deletedNode, "delete"); //* Update Apollo cache
+            setVoltageHistory(
+              (prev) => prev.filter((entry) => entry.id !== id) //* e.g., remove entries with id "4"
             );
+            setAlerts((prev) => {
+              const newAlerts = { ...prev };
+              delete newAlerts[id]; //* Remove alert for deleted node
+              return newAlerts;
+            });
           }
         },
       })
         .then(() => setMutationLoading((prev) => ({ ...prev, delete: false })))
         .catch((error) => {
-          addAlert(`Failed to delete Node ${id}: ${error.message}`);
+          addAlert(id, `Failed to delete Node ${id}: ${error.message}`);
           setMutationLoading((prev) => ({ ...prev, delete: false }));
         });
     },
     [deleteNode, addAlert]
   );
 
+  //* Callback - Refresh grid data from server
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const { data } = await refetch({ fetchPolicy: "network-only" });
+      const { data } = await refetch({ fetchPolicy: "network-only" }); //* Force network fetch
       if (data?.grid) {
         setVoltageHistory((prev) => {
-          const updatedHistory = [...prev];
+          const updatedHistory = [...prev]; //* e.g., [{ id: "1", ... }, ...]
           data.grid.forEach((newEntry: GridEntry) => {
             const index = updatedHistory.findIndex(
               (entry) => entry.id === newEntry.id
             );
             if (index !== -1) {
-              updatedHistory[index] = newEntry;
+              updatedHistory[index] = newEntry; //* e.g., update existing entry
             } else {
               updatedHistory.push(newEntry);
             }
@@ -194,77 +224,68 @@ function App() {
         });
       }
     } catch (error) {
-      addAlert(`Refresh failed: ${error.message}`);
+      if (error instanceof Error) {
+        console.error(`Refresh failed: ${error.message}`);
+      } else {
+        console.error("Refresh failed with an unknown error.");
+      }
     } finally {
       setIsRefreshing(false);
     }
-  }, [refetch, addAlert]);
+  }, [refetch]);
 
+  //* Callback - Toggle pause state for subscription
   const handleTogglePause = useCallback(() => {
-    setIsPaused((prev) => !prev);
+    setIsPaused((prev) => !prev); // e.g., true -> false
   }, []);
 
+  //* Computed - Filter history based on selected time frame only (no hidden nodes filter)
   const filteredHistory = useMemo(() => {
-    const now = Date.now();
-    const limit = TIME_LIMITS[timeFrame];
+    const now = Date.now(); // e.g., 1711792800000
+    const limit = TIME_LIMITS[timeFrame]; // e.g., 300000 for "Last 5 min"
     return voltageHistory.filter(
-      (entry) => now - new Date(entry.timestamp).getTime() <= limit
+      (entry) => now - new Date(entry.timestamp).getTime() <= limit // e.g., keep entries within 5 min
     );
   }, [voltageHistory, timeFrame]);
 
+  //* Computed - Render list of grid nodes with delete and alerts
   const renderedGrid = useMemo(() => {
     if (!queryData?.grid) return null;
     return queryData.grid.map((entry: GridEntry) => (
       <GridNode
         key={entry.id}
-        entry={entry}
+        entry={entry} //* e.g., { id: "1", voltage: 237, timestamp: "2025-03-29T10:00:00Z" }
         updatedId={updatedId}
         onUpdateVoltage={handleUpdateVoltage}
+        onDeleteNode={handleDeleteNode}
+        alert={alerts[entry.id] || null}
       />
     ));
-  }, [queryData?.grid, updatedId, handleUpdateVoltage]);
+  }, [
+    queryData?.grid,
+    updatedId,
+    handleUpdateVoltage,
+    handleDeleteNode,
+    alerts,
+  ]);
 
+  //* Render Function - Conditionally display content
   const renderContent = () => {
     if (loading && !queryData) {
       return <p className="text-gray-400">Loading grid data...</p>;
     }
     return (
       <>
-        <div className="relative">
-          <ControlPanel
-            paused={isPaused}
-            onTogglePause={handleTogglePause}
-            onRefresh={handleRefresh}
-            onAddNode={handleAddNode}
-            onDeleteNode={handleDeleteNode}
-            loading={isRefreshing}
-            mutationLoading={mutationLoading}
-            nodes={queryData?.grid || []}
-          />
-          {alerts.length > 0 && (
-            <div className="absolute top-0 right-0 mt-2 mr-2 max-w-xs">
-              <div className="flex justify-between items-center mb-1">
-                <h3 className="text-sm font-semibold text-gray-200">Alerts</h3>
-                <button
-                  onClick={clearAlerts}
-                  className="text-xs text-gray-400 hover:text-gray-200"
-                >
-                  Clear
-                </button>
-              </div>
-              <ul className="space-y-1">
-                {alerts.map((alert, index) => (
-                  <li
-                    key={index}
-                    className="p-1 bg-red-500/20 text-red-400 text-sm rounded"
-                  >
-                    {alert}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+        <ControlPanel
+          paused={isPaused}
+          onTogglePause={handleTogglePause} //* Toggle subscription pause
+          onRefresh={handleRefresh}
+          onAddNode={handleAddNode}
+          onDeleteNode={handleDeleteNode}
+          loading={isRefreshing}
+          mutationLoading={mutationLoading}
+          nodes={queryData?.grid || []}
+        />
         <div className="mb-6">
           <div className="flex gap-2 mb-4">
             {Object.keys(TIME_LIMITS).map((frame) => (
@@ -281,13 +302,18 @@ function App() {
               </button>
             ))}
           </div>
-          <VoltageChart history={filteredHistory} />
+          <VoltageChart
+            history={filteredHistory}
+            onLegendClick={handleLegendClick}
+            hiddenNodes={hiddenNodes}
+          />
         </div>
         <ul className="space-y-3">{renderedGrid}</ul>
       </>
     );
   };
 
+  //* Render - Main application UI
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 p-6">
       <h1 className="text-3xl font-bold mb-6">Grid Voltage Monitor</h1>
