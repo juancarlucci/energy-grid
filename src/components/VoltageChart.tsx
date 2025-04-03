@@ -14,6 +14,7 @@ import { Line } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
 import { GridEntry } from "../hooks/useGridData";
 
+//* Register ChartJS components - Set up chart functionality
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -25,6 +26,7 @@ ChartJS.register(
   annotationPlugin
 );
 
+//* Constants - Define color palette for node lines
 const observable10Colors = [
   "#4E79A7",
   "#F28E2B",
@@ -40,57 +42,71 @@ const observable10Colors = [
 
 const getRandomColor = () =>
   observable10Colors[Math.floor(Math.random() * observable10Colors.length)];
-
 interface VoltageChartProps {
-  history: GridEntry[];
+  history: GridEntry[]; // e.g., [{ id: "1", voltage: 237, timestamp: "2025-03-29T10:00:00Z" }, ...]
+  onLegendClick?: (nodeId: string) => void; //* Callback to handle legend toggle
+  hiddenNodes?: Set<string>;
 }
 
-export const VoltageChart = ({ history }: VoltageChartProps) => {
+//* VoltageChart Component - Renders a line chart of voltage history for grid nodes
+export const VoltageChart = ({
+  history,
+  onLegendClick,
+  hiddenNodes,
+}: VoltageChartProps) => {
+  //* Ref - Hold reference to ChartJS instance
   const chartRef = useRef<ChartJS<"line", (number | null)[], string> | null>(
     null
   );
-  const nodeColors = useRef<Map<string, string>>(new Map()); // Persist colors per node
+  const nodeColors = useRef<Map<string, string>>(new Map()); //* Persist colors per node, e.g., Map<"1", "#4E79A7">
 
-  // Assign or retrieve persistent color for each node
+  //* Callback - Assign or retrieve persistent color for each node
   const getNodeColor = useCallback((nodeId: string) => {
     if (!nodeColors.current.has(nodeId)) {
-      nodeColors.current.set(nodeId, getRandomColor());
+      nodeColors.current.set(nodeId, getRandomColor()); // e.g., set "1" -> "#4E79A7"
     }
-    return nodeColors.current.get(nodeId)!;
+    return nodeColors.current.get(nodeId)!; // e.g., "#4E79A7"
   }, []);
 
+  //* Computed Data - Transform history into chart-friendly format
   const chartData = useMemo(() => {
+    //* Labels - Unique timestamps as x-axis labels
     const labels = Array.from(new Set(history.map((entry) => entry.timestamp)))
       .sort()
-      .map((ts) => new Date(ts).toLocaleTimeString());
+      .map((ts) => new Date(ts).toLocaleTimeString()); // e.g., ["10:00:00", "10:00:03", ...]
 
     return {
       labels,
       datasets: Array.from(new Set(history.map((entry) => entry.id))).map(
         (nodeId) => {
-          const nodeData = history.filter((entry) => entry.id === nodeId);
+          //* Node Data - Filter history for this node
+          const nodeData = history.filter((entry) => entry.id === nodeId); // e.g., [{ id: "1", voltage: 237, ... }, ...]
           const firstEntry = nodeData.reduce((earliest, current) =>
             new Date(current.timestamp) < new Date(earliest.timestamp)
               ? current
               : earliest
-          );
+          ); // e.g., { id: "1", voltage: 237, timestamp: "2025-03-29T10:00:00Z" }
           const firstTimestamp = firstEntry.timestamp;
           let lastVoltage: number | null = null;
+
+          //* Data Points - Voltage values for each label
           const data = labels.map((label) => {
             const timestamp = history.find(
               (e) => new Date(e.timestamp).toLocaleTimeString() === label
-            )?.timestamp;
-            const entry = nodeData.find((e) => e.timestamp === timestamp);
-            if (entry) lastVoltage = entry.voltage;
+            )?.timestamp; // e.g., "2025-03-29T10:00:00Z"
+            const entry = nodeData.find((e) => e.timestamp === timestamp); // e.g., { id: "1", voltage: 237, ... }
+            if (entry) lastVoltage = entry.voltage; // e.g., 237
             return timestamp && new Date(timestamp) < new Date(firstTimestamp)
               ? null
-              : lastVoltage;
+              : lastVoltage; // e.g., 237 or null
           });
+
+          //* Point Colors - Green for safe, orange for out-of-range
           const pointColors = labels.map((label) => {
             const timestamp = history.find(
               (e) => new Date(e.timestamp).toLocaleTimeString() === label
-            )?.timestamp;
-            const entry = nodeData.find((e) => e.timestamp === timestamp);
+            )?.timestamp; // e.g., "2025-03-29T10:00:00Z"
+            const entry = nodeData.find((e) => e.timestamp === timestamp); // e.g., { id: "1", voltage: 237, ... }
             const voltage = entry ? entry.voltage : lastVoltage;
             return voltage && voltage >= 223 && voltage <= 237
               ? "#2ecc71"
@@ -99,7 +115,7 @@ export const VoltageChart = ({ history }: VoltageChartProps) => {
 
           return {
             label: `Node ${nodeId}`,
-            data,
+            data, // e.g., [null, 237, 237, ...]
             borderColor: getNodeColor(nodeId),
             backgroundColor: "transparent",
             pointBackgroundColor: pointColors,
@@ -107,20 +123,23 @@ export const VoltageChart = ({ history }: VoltageChartProps) => {
             pointHoverRadius: 6,
             tension: 0.3,
             fill: false,
+            hidden: hiddenNodes?.has(nodeId) || false,
           };
         }
       ),
     };
-  }, [history, getNodeColor]);
+  }, [history, getNodeColor, hiddenNodes]);
 
+  //* Effect - Sync chart data and visibility with updates
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
 
-    chart.data = chartData; // Sync chart data directly with chartData
+    chart.data = chartData; //* Sync chart data, e.g., { labels: ["10:00:00", ...], datasets: [...] }
     chart.update({ duration: 500 });
   }, [chartData]);
 
+  //* Chart Options - Configure appearance and behavior
   const options: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
@@ -129,6 +148,15 @@ export const VoltageChart = ({ history }: VoltageChartProps) => {
       legend: {
         position: "top",
         labels: { color: "#e2e8f0", font: { size: 14 } },
+        onClick: (e, legendItem) => {
+          const index = legendItem.datasetIndex!;
+          const chart = chartRef.current!;
+          const meta = chart.getDatasetMeta(index);
+          meta.hidden = !meta.hidden; //* Toggle Node visibility in Chart.js
+          const nodeId = legendItem.text.split(" ")[1]; // e.g., "1" from "Node 1"
+          if (onLegendClick) onLegendClick(nodeId); //* Notify App of toggle
+          chart.update();
+        },
       },
       tooltip: {
         backgroundColor: "rgba(0, 0, 0, 0.8)",
@@ -136,24 +164,23 @@ export const VoltageChart = ({ history }: VoltageChartProps) => {
         bodyColor: "#e2e8f0",
         callbacks: {
           label: (context) => {
-            const dataset = context.dataset;
-            const index = context.dataIndex;
+            const dataset = context.dataset; // e.g., { label: "Node 1", data: [237, ...], ... }
             const timestamp = history.find(
               (e) =>
                 new Date(e.timestamp).toLocaleTimeString() === context.label
             )?.timestamp;
             const entry = history.find(
               (e) =>
-                e.id === dataset.label.split(" ")[1] &&
+                e.id === dataset.label?.split(" ")[1] &&
                 e.timestamp === timestamp
             );
             return entry
               ? `Node ${entry.id}: ${entry.voltage}V at ${new Date(
                   entry.timestamp
-                ).toLocaleString()}`
-              : `Node ${dataset.label.split(" ")[1]}: ${
+                ).toLocaleString()}` // e.g., "Node 1: 237V at 3/29/2025, 10:00:00 AM"
+              : `Node ${dataset.label?.split(" ")[1]}: ${
                   context.raw
-                }V (interpolated)`;
+                }V (interpolated)`; // e.g., "Node 1: 237V (interpolated)"
           },
         },
       },
@@ -198,6 +225,7 @@ export const VoltageChart = ({ history }: VoltageChartProps) => {
     },
   };
 
+  //* Render - Display the line chart
   return (
     <div className="w-full h-[400px] bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
       <Line ref={chartRef} data={chartData} options={options} />
