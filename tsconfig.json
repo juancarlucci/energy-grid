@@ -1,14 +1,8 @@
-// {
-//   "files": [],
-//   "references": [
-//     { "path": "./tsconfig.app.json" },
-//     { "path": "./tsconfig.node.json" }
-//   ]
-// }
 {
   "compilerOptions": {
     "target": "es5",
     "module": "esnext",
+    "noEmit": true, // Prevents .js file output
     "jsx": "react-jsx", // Enable JSX for React
     "esModuleInterop": true, // Fix module interop warning
     "moduleResolution": "node",
