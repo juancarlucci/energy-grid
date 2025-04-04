@@ -313,12 +313,14 @@ function App() {
     );
   };
 
-  //* Render - Main application UI
+  //* Render - Main application UI with semantic structure
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 p-6">
-      <h1 className="text-3xl font-bold mb-6">Grid Voltage Monitor</h1>
+    <main className="min-h-screen bg-gray-900 text-gray-200 p-6" role="main">
+      <header>
+        <h1 className="text-3xl font-bold mb-6">Grid Voltage Monitor</h1>
+      </header>
       {renderContent()}
-    </div>
+    </main>
   );
 }
 
