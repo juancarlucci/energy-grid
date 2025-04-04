@@ -4,6 +4,7 @@ import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
+  base: "/energy-grid/",
   plugins: [
     react(),
     viteCompression({
