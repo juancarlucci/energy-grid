@@ -32,9 +32,12 @@ export const ControlPanel = ({
     }
   };
 
-  //* Render - Display control UI with Tailwind styling
+  //* Render - Display control panel UI as a navigation section with semantic structure
   return (
-    <div className="p-5 bg-gray-800 border border-gray-700 rounded-lg mb-6 flex flex-wrap gap-4 items-center">
+    <nav
+      className="p-5 bg-gray-800 border border-gray-700 rounded-lg mb-6 flex flex-wrap gap-4 items-center"
+      aria-label="Grid control panel"
+    >
       <button
         onClick={onTogglePause}
         disabled={loading}
@@ -42,7 +45,10 @@ export const ControlPanel = ({
           paused
             ? "bg-red-500 hover:bg-red-600"
             : "bg-blue-600 hover:bg-blue-700"
-        } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+        } ${
+          loading ? "opacity-70 cursor-not-allowed" : ""
+        } focus:ring-2 focus:ring-blue-500`}
+        aria-pressed={paused}
       >
         {paused ? "Resume" : "Pause"}
       </button>
@@ -51,18 +57,23 @@ export const ControlPanel = ({
         disabled={loading}
         className={`px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 ${
           loading ? "opacity-70 cursor-not-allowed" : ""
-        }`}
+        } focus:ring-2 focus:ring-green-500`}
+        aria-busy={loading}
       >
         {loading ? "Refreshing..." : "Refresh"}
       </button>
       <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={newNodeId}
-          onChange={(e) => setNewNodeId(e.target.value)}
-          placeholder="New Node ID (e.g., 4)"
-          className="px-2 py-1 bg-gray-700 text-gray-200 border border-gray-600 rounded w-32 focus:outline-none focus:border-blue-500"
-        />
+        <label className="flex items-center gap-1">
+          <span className="sr-only">New Node ID</span>
+          <input
+            type="text"
+            value={newNodeId}
+            onChange={(e) => setNewNodeId(e.target.value)}
+            placeholder="New Node ID (e.g., 4)"
+            className="px-2 py-1 bg-gray-700 text-gray-200 border border-gray-600 rounded w-32 focus:outline-none focus:border-blue-500"
+            aria-label="New Node ID input"
+          />
+        </label>
         <button
           onClick={handleAdd}
           disabled={mutationLoading?.add || !newNodeId.trim()}
@@ -70,11 +81,12 @@ export const ControlPanel = ({
             mutationLoading?.add || !newNodeId.trim()
               ? "opacity-70 cursor-not-allowed"
               : ""
-          }`}
+          } focus:ring-2 focus:ring-blue-500`}
+          aria-busy={mutationLoading?.add}
         >
           {mutationLoading?.add ? "Adding..." : "Add Node"}
         </button>
       </div>
-    </div>
+    </nav>
   );
 };

@@ -225,10 +225,13 @@ export const VoltageChart = ({
     },
   };
 
-  //* Render - Display the line chart
+  //* Render - Display the line chart with semantic figure element for data visualization
   return (
-    <div className="w-full h-[400px] bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+    <figure
+      className="w-full h-[400px] bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700"
+      aria-label="Voltage history chart for grid nodes"
+    >
       <Line ref={chartRef} data={chartData} options={options} />
-    </div>
+    </figure>
   );
 };

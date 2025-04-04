@@ -43,40 +43,59 @@ export function GridNode({
     onDeleteNode(entry.id);
   };
 
-  //* Render - Display node info, update controls, delete button, and alert inline
+  //* Render - Display node info and controls as an article within a list
   return (
-    <li
-      className={`p-4 bg-gray-800 border border-gray-700 rounded-lg flex items-center gap-3 ${
-        isUpdated ? "bg-blue-500/20" : ""
-      }`}
-    >
-      <span className="text-gray-400">Node {entry.id}:</span>
-      <span
-        className={`font-bold ${isSafe ? "text-green-400" : "text-orange-400"}`}
+    <li>
+      <article
+        className={`p-4 bg-gray-800 border border-gray-700 rounded-lg flex items-center gap-3 ${
+          isUpdated ? "bg-blue-500/20" : ""
+        }`}
+        aria-label={`Node ${entry.id} status`}
       >
-        {entry.voltage}V
-      </span>
-      <span className="text-gray-400">{formatTimestamp(entry.timestamp)}</span>
-      <input
-        type="number"
-        value={voltageInput}
-        onChange={(e) => setVoltageInput(e.target.value)}
-        placeholder="220-239"
-        className="ml-2 w-24 p-1 bg-gray-700 text-gray-200 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-      />
-      <button
-        onClick={handleUpdate}
-        className="ml-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none"
-      >
-        Update
-      </button>
-      <button
-        onClick={handleDelete}
-        className="ml-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none"
-      >
-        Delete
-      </button>
-      {alert && <span className="ml-2 text-red-600 text-sm">{alert}</span>}
+        <span className="text-gray-400">Node {entry.id}:</span>
+        <span
+          className={`font-bold ${
+            isSafe ? "text-green-400" : "text-orange-400"
+          }`}
+        >
+          {entry.voltage}V
+        </span>
+        <time className="text-gray-400" dateTime={entry.timestamp}>
+          {formatTimestamp(entry.timestamp)}
+        </time>
+        <label className="ml-2 flex items-center gap-1">
+          <span className="sr-only">Update voltage for Node {entry.id}</span>
+          <input
+            type="number"
+            value={voltageInput}
+            onChange={(e) => setVoltageInput(e.target.value)}
+            placeholder="220-239"
+            className="w-24 p-1 bg-gray-700 text-gray-200 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+            aria-label={`Voltage input for Node ${entry.id}`}
+          />
+        </label>
+        <button
+          onClick={handleUpdate}
+          className="ml-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Update
+        </button>
+        <button
+          onClick={handleDelete}
+          className="ml-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+        >
+          Delete
+        </button>
+        {alert && (
+          <span
+            className="ml-2 text-red-400 text-sm"
+            role="alert"
+            aria-live="polite"
+          >
+            {alert}
+          </span>
+        )}
+      </article>
     </li>
   );
 }
