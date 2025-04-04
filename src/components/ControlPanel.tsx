@@ -55,9 +55,9 @@ export const ControlPanel = ({
       <button
         onClick={onRefresh}
         disabled={loading}
-        className={`px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 ${
+        className={`px-3 py-1 bg-green-700 text-white rounded hover:bg-green-600 ${
           loading ? "opacity-70 cursor-not-allowed" : ""
-        } focus:ring-2 focus:ring-green-500`}
+        } focus:ring-2 focus:ring-green-700`}
         aria-busy={loading}
       >
         {loading ? "Refreshing..." : "Refresh"}
