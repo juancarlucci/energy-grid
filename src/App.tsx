@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  Suspense,
+  lazy,
+} from "react";
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { GridEntry } from "./hooks/useGridData";
 import { VoltageChart } from "./components/VoltageChart";
@@ -252,14 +259,15 @@ function App() {
   const renderedGrid = useMemo(() => {
     if (!queryData?.grid) return null;
     return queryData.grid.map((entry: GridEntry) => (
-      <GridNode
-        key={entry.id}
-        entry={entry} //* e.g., { id: "1", voltage: 237, timestamp: "2025-03-29T10:00:00Z" }
-        updatedId={updatedId}
-        onUpdateVoltage={handleUpdateVoltage}
-        onDeleteNode={handleDeleteNode}
-        alert={alerts[entry.id] || null}
-      />
+      <Suspense key={entry.id} fallback={<li>Loading node...</li>}>
+        <GridNode
+          entry={entry}
+          updatedId={updatedId}
+          onUpdateVoltage={handleUpdateVoltage}
+          onDeleteNode={handleDeleteNode}
+          alert={alerts[entry.id] || null}
+        />
+      </Suspense>
     ));
   }, [
     queryData?.grid,
@@ -275,16 +283,21 @@ function App() {
       return <p className="text-gray-400">Loading grid data...</p>;
     }
     return (
-      <>
+      <Suspense
+        fallback={<div className="text-gray-400">Loading components...</div>}
+      >
         <ControlPanel
           paused={isPaused}
-          onTogglePause={handleTogglePause} //* Toggle subscription pause
+          onTogglePause={handleTogglePause}
           onRefresh={handleRefresh}
           onAddNode={handleAddNode}
           onDeleteNode={handleDeleteNode}
           loading={isRefreshing}
           mutationLoading={mutationLoading}
           nodes={queryData?.grid || []}
+          onToggleNode={(id: string) => {
+            throw new Error("Function not implemented.");
+          }}
         />
         <div className="mb-6">
           <div className="flex gap-2 mb-4">
@@ -309,11 +322,10 @@ function App() {
           />
         </div>
         <ul className="space-y-3">{renderedGrid}</ul>
-      </>
+      </Suspense>
     );
   };
 
-  //* Render - Main application UI with semantic structure
   return (
     <main className="min-h-screen bg-gray-900 text-gray-200 p-6" role="main">
       <header>
