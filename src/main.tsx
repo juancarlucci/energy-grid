@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { ApolloClient, InMemoryCache, ApolloProvider } from "@apollo/client";
 import { WebSocketLink } from "@apollo/client/link/ws";
 import App from "./App";
-import "../dist/output.css"; //* please look at src/docs/tailwind-react.md
+import "../src/output.css"; //* please look at src/docs/tailwind-react.md
 
 //* WebSocket link: A live courier service delivering real-time book updates (and static queries) from our local publishing house
 const wsLink = new WebSocketLink({
