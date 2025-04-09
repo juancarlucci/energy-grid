@@ -228,7 +228,7 @@ export const VoltageChart = ({
   //* Render - Display the line chart with semantic figure element for data visualization
   return (
     <figure
-      className="w-full h-[400px] bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700"
+      className="h-[400px] max-w-[1180px] bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700"
       aria-label="Voltage history chart for grid nodes"
     >
       <Line ref={chartRef} data={chartData} options={options} />

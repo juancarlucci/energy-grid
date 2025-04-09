@@ -35,49 +35,51 @@ export const ControlPanel = ({
   //* Render - Display control panel UI as a navigation section with semantic structure
   return (
     <nav
-      className="p-5 bg-gray-800 border border-gray-700 rounded-lg mb-6 flex flex-wrap gap-4 items-center"
+      className="p-4 sm:p-5 bg-gray-800 border border-gray-700 rounded-lg mb-6 flex flex-col sm:flex-row gap-4"
       aria-label="Grid control panel"
     >
-      <button
-        onClick={onTogglePause}
-        disabled={loading}
-        className={`px-3 py-1 rounded text-white ${
-          paused
-            ? "bg-red-500 hover:bg-red-600"
-            : "bg-blue-600 hover:bg-blue-700"
-        } ${
-          loading ? "opacity-70 cursor-not-allowed" : ""
-        } focus:ring-2 focus:ring-blue-500`}
-        aria-pressed={paused}
-      >
-        {paused ? "Resume" : "Pause"}
-      </button>
-      <button
-        onClick={onRefresh}
-        disabled={loading}
-        className={`px-3 py-1 bg-green-700 text-white rounded hover:bg-green-600 ${
-          loading ? "opacity-70 cursor-not-allowed" : ""
-        } focus:ring-2 focus:ring-green-700`}
-        aria-busy={loading}
-      >
-        {loading ? "Refreshing..." : "Refresh"}
-      </button>
-      <div className="flex items-center gap-2">
-        <label className="flex items-center gap-1">
-          <span className="sr-only">New Node ID</span>
-          <input
-            type="text"
-            value={newNodeId}
-            onChange={(e) => setNewNodeId(e.target.value)}
-            placeholder="New Node ID (e.g., 4)"
-            className="px-2 py-1 bg-gray-700 text-gray-200 border border-gray-600 rounded w-32 focus:outline-none focus:border-blue-500"
-            aria-label="New Node ID input"
-          />
-        </label>
+      {/* Group 1: Pause and Refresh buttons - always in row */}
+      <div className="flex gap-3 flex-shrink-0">
+        <button
+          onClick={onTogglePause}
+          disabled={loading}
+          className={`px-3 py-1 rounded text-white ${
+            paused
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-blue-600 hover:bg-blue-700"
+          } ${
+            loading ? "opacity-70 cursor-not-allowed" : ""
+          } focus:ring-2 focus:ring-blue-500`}
+          aria-pressed={paused}
+        >
+          {paused ? "Resume" : "Pause"}
+        </button>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className={`px-3 py-1 bg-green-700 text-white rounded hover:bg-green-600 ${
+            loading ? "opacity-70 cursor-not-allowed" : ""
+          } focus:ring-2 focus:ring-green-700`}
+          aria-busy={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {/* Group 2: Input and Add Node button - always in row */}
+      <div className="flex gap-3 flex-1">
+        <input
+          type="text"
+          value={newNodeId}
+          onChange={(e) => setNewNodeId(e.target.value)}
+          placeholder="New Node ID (e.g., 4)"
+          className="min-w-0 max-w-[180px] w-full sm:w-auto flex-grow px-3 py-1.5 bg-gray-700 text-gray-200 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+          aria-label="New Node ID input"
+        />
         <button
           onClick={handleAdd}
           disabled={mutationLoading?.add || !newNodeId.trim()}
-          className={`px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 ${
+          className={`px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap flex-shrink-0 ${
             mutationLoading?.add || !newNodeId.trim()
               ? "opacity-70 cursor-not-allowed"
               : ""
