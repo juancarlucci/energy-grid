@@ -214,3 +214,22 @@ As of March 31, 2025, this is a polished demo with mock data, fully functional w
 ### License
 
 MIT License - see LICENSE for details. (TODO: Add LICENSE file if applicable.)
+Deployment
+
+Automating Deployment to GitHub Pages
+
+To deploy your updates to GitHub Pages, follow these steps:
+
+Make any necessary changes to your codebase (e.g., adding a new component or restyling a page).
+
+Run the deployment script:
+
+npm run deploy
+
+This command will:
+
+Build the project using npm run build, which compiles the app into the dist/ folder.
+
+Use gh-pages -d dist to push the dist/ folder to the gh-pages branch.
+
+Once deployed, your changes will be reflected on GitHub Pages.
