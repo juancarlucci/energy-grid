@@ -1,11 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  Suspense,
-  lazy,
-} from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { GridEntry } from "./hooks/useGridData";
 import { VoltageChart } from "./components/VoltageChart";
@@ -295,12 +288,9 @@ function App() {
           loading={isRefreshing}
           mutationLoading={mutationLoading}
           nodes={queryData?.grid || []}
-          onToggleNode={(id: string) => {
-            throw new Error("Function not implemented.");
-          }}
         />
         <div className="mb-6">
-          <div className="flex gap-2 mb-4">
+          {/* <div className="flex gap-2 mb-4">
             {Object.keys(TIME_LIMITS).map((frame) => (
               <button
                 key={frame}
@@ -314,22 +304,30 @@ function App() {
                 {frame}
               </button>
             ))}
-          </div>
+          </div> */}
           <VoltageChart
             history={filteredHistory}
             onLegendClick={handleLegendClick}
             hiddenNodes={hiddenNodes}
           />
         </div>
-        <ul className="space-y-3">{renderedGrid}</ul>
+
+        <ul className="max-w-[1180px] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(276px,1fr))] gap-4">
+          {renderedGrid}
+        </ul>
       </Suspense>
     );
   };
 
   return (
-    <main className="min-h-screen bg-gray-900 text-gray-200 p-6" role="main">
+    <main
+      className="min-h-screen bg-gray-900 text-gray-200 p-4 sm:p-6"
+      role="main"
+    >
       <header>
-        <h1 className="text-3xl font-bold mb-6">Grid Voltage Monitor</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">
+          Grid Voltage Monitor
+        </h1>
       </header>
       {renderContent()}
     </main>
