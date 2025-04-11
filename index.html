@@ -9,9 +9,14 @@
       content="Monitor grid voltage in real-time with our interactive tool. Track nodes, view charts, and optimize energy usage."
     />
     <link rel="icon" type="image/png" href="/favicon-32x32.png" />
+    <link rel="preconnect" href="http://localhost:4000" />
+    <link rel="preconnect" href="ws://localhost:4000" />
+    <link rel="preload" href="/src/output.css" as="style" />
+    <link rel="stylesheet" href="/src/output.css" />
+    <!-- Add type="module" and proper MIME type -->
+    <script type="module" src="/src/main.tsx"></script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
