@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback } from "react";
+import { useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,7 +10,6 @@ import {
   Legend,
   ChartOptions,
 } from "chart.js";
-import { Line } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
 import { GridEntry } from "../hooks/useGridData";
 
@@ -47,6 +46,12 @@ interface VoltageChartProps {
   onLegendClick?: (nodeId: string) => void; //* Callback to handle legend toggle
   hiddenNodes?: Set<string>;
 }
+
+const Chart = lazy(() =>
+  import("react-chartjs-2").then((module) => ({
+    default: module.Line,
+  }))
+);
 
 //* VoltageChart Component - Renders a line chart of voltage history for grid nodes
 export const VoltageChart = ({
@@ -231,7 +236,9 @@ export const VoltageChart = ({
       className="h-[400px] max-w-[1180px] bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700"
       aria-label="Voltage history chart for grid nodes"
     >
-      <Line ref={chartRef} data={chartData} options={options} />
+      <Suspense fallback={<div>Loading chart...</div>}>
+        <Chart ref={chartRef} data={chartData} options={options} />
+      </Suspense>
     </figure>
   );
 };

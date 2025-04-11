@@ -98,7 +98,7 @@ export function GridNode({
 
         {alert && (
           <span
-            className="text-red-600 text-sm"
+            className="text-red-500 text-sm font-medium"
             role="alert"
             aria-live="polite"
           >

@@ -67,6 +67,54 @@ This project simulates a small-scale energy grid dashboard, fetching initial dat
 - **WebSocket Error:** Ensure port 4000 is free (`lsof -i :4000` on Unix systems) and restart the server.
 - **Dependencies Fail:** Verify Node.js version with `node -v` and reinstall with `npm install`.
 
+## Build and Preview
+
+To build and preview the production version locally:
+
+1. Clean previous builds:
+
+```bash
+# Remove previous build artifacts
+rm -rf dist/
+```
+
+2. Build the application:
+
+```bash
+# Run the production build
+npm run build
+```
+
+This will:
+
+- Build your CSS with Tailwind
+- Bundle your application with Vite
+- Compress assets with Gzip and Brotli
+- Generate bundle analysis in `dist/stats.html`
+
+3. Start the preview server:
+
+```bash
+# Run the preview server
+npm run preview
+```
+
+4. View and test your application:
+
+- Open your browser and navigate to: `http://localhost:4173/energy-grid/`
+- Run Lighthouse audit in Chrome DevTools:
+  1. Open DevTools (Cmd + Option + I on Mac)
+  2. Go to "Lighthouse" tab
+  3. Click "Analyze page load"
+
+5. View bundle analysis:
+
+- Open `dist/stats.html` in your browser to see the bundle size breakdown
+
+Note: The preview server uses port 4173 by default, which is different from the development server (5173). This is intentional to avoid conflicts.
+
+To stop the preview server, press Ctrl + C in your terminal.
+
 ### Usage
 
 Dashboard: See node voltages and chart with real-time updates from server.cjs.
