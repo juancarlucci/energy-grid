@@ -220,7 +220,7 @@ const data = labels.map((label) => {
 
 Through targeted build optimizations and performance improvements, we achieved the following Lighthouse scores in production:
 
-![Energy Grid Dashboard Lighthouse scores](./src/docs/Energy-Grid-Voltage-Monitor-Lighthouse.png)
+![Energy Grid Dashboard Lighthouse scores](./src/docs/Performance-Optimization-&-Lighthouse-Scores.png)
 
 ### Performance: 100
 
