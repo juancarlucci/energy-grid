@@ -1,6 +1,6 @@
 # Energy Grid Dashboard
 
-![Energy Grid Dashboard](./src/docs/Energy-Grid-Voltage-Monitor.png)
+![Energy Grid Dashboard](./src/docs/Energy-Grid-Voltage-Monitor-01.png)
 
 A real-time dashboard to monitor and manage energy grid nodes using React, GraphQL via Apollo Client, Vite, and Tailwind CSS, powered by a WebSocket-based server. The app uses Chart.js for visualizations.
 
