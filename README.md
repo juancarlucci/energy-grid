@@ -216,11 +216,11 @@ const data = labels.map((label) => {
 
 \*See package.json for full list.
 
-## Lighthouse scores
+## Performance Optimization and Lighthouse Scores
 
-![Energy Grid Dashboard Lighthouse scores](./src/docs/Energy-Grid-Voltage-Monitor-Lighthouse-01.png)
+Through targeted build optimizations and performance improvements, we achieved the following Lighthouse scores in production:
 
-Through targeted optimizations, we achieved perfect Lighthouse scores across four key areas:
+![Energy Grid Dashboard Lighthouse scores](./src/docs/Energy-Grid-Voltage-Monitor-Lighthouse.png)
 
 ### Performance: 100
 
