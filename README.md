@@ -218,7 +218,7 @@ const data = labels.map((label) => {
 
 ## Lighthouse scores
 
-![Energy Grid Dashboard Lighthouse scores](./src/docs/Energy-Grid-Voltage-Monitor-Lighthouse.png)
+![Energy Grid Dashboard Lighthouse scores](./src/docs/Energy-Grid-Voltage-Monitor-Lighthouse-01.png)
 
 Through targeted optimizations, we achieved perfect Lighthouse scores across four key areas:
 
